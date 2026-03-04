@@ -175,8 +175,41 @@ class TestEnv(unittest.TestCase):
     )
     def test_get_env_vars_repo_specific_exemptions_trims_whitespace(self):
         """Test that REPO_SPECIFIC_EXEMPTIONS trims whitespace in ecosystems."""
+        expected_result = (
+            "my_organization",
+            [],
+            "",  # search_query
+            None,
+            None,
+            b"",
+            False,
+            "my_token",
+            "",
+            ["repo4", "repo5"],
+            "issue",
+            "Dependabot Alert custom title",
+            "Dependabot custom body",
+            "2020-01-01",
+            False,
+            "Create dependabot configuration",
+            "123",
+            False,
+            ["internal", "private", "public"],
+            None,  # batch_size
+            True,  # enable_security_updates
+            [],  # exempt_ecosystems
+            False,  # update_existing
+            {
+                "repo1": ["gomod", "docker"],
+            },  # repo_specific_exemptions
+            "weekly",  # schedule
+            "",  # schedule_day
+            None,  # team_name
+            [],  # labels
+            None,
+        )
         result = get_env_vars(True)
-        self.assertEqual(result[23], {"repo1": ["gomod", "docker"]})
+        self.assertEqual(result, expected_result)
 
     @patch.dict(
         os.environ,
