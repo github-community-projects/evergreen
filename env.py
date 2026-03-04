@@ -71,7 +71,9 @@ def parse_repo_specific_exemptions(repo_specific_exemptions_str: str) -> dict:
             ):  # Account for final ; in the repo_specific_exemptions_str
                 continue
             repo, ecosystems = exemption.split(":")
+            cleaned_ecosystems = []
             for ecosystem in ecosystems.split(","):
+                ecosystem = ecosystem.strip()
                 if ecosystem not in [
                     "bundler",
                     "cargo",
@@ -88,9 +90,8 @@ def parse_repo_specific_exemptions(repo_specific_exemptions_str: str) -> dict:
                     raise ValueError(
                         "REPO_SPECIFIC_EXEMPTIONS environment variable not formatted correctly. Unrecognized package-ecosystem."
                     )
-            exemptions_dict[repo.strip()] = [
-                ecosystem.strip() for ecosystem in ecosystems.split(",")
-            ]
+                cleaned_ecosystems.append(ecosystem)
+            exemptions_dict[repo.strip()] = cleaned_ecosystems
     return exemptions_dict
 
 
