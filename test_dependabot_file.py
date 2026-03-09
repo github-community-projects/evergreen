@@ -8,7 +8,11 @@ from unittest.mock import MagicMock, patch
 
 import github3
 import ruamel.yaml
-from dependabot_file import add_existing_ecosystem_to_exempt_list, build_dependabot_file
+from dependabot_file import (
+    add_existing_ecosystem_to_exempt_list,
+    build_dependabot_file,
+    validate_cooldown_config,
+)
 
 yaml = ruamel.yaml.YAML()
 
@@ -807,6 +811,251 @@ updates:
         )
         self.assertEqual(result, expected_result)
 
+    def test_build_dependabot_file_with_cooldown_default_days_only(self):
+        """Test that cooldown with only default-days is added correctly"""
+        repo = MagicMock()
+        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
 
-if __name__ == "__main__":
-    unittest.main()
+        cooldown = {"default-days": 3}
+        expected_result = yaml.load(b"""
+version: 2
+updates:
+  - package-ecosystem: 'docker'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 3
+""")
+        result = build_dependabot_file(
+            repo, False, [], {}, None, "weekly", "", [], None, cooldown
+        )
+        self.assertEqual(result, expected_result)
+
+    def test_build_dependabot_file_with_cooldown_all_params(self):
+        """Test that cooldown with all semver day parameters is added correctly"""
+        repo = MagicMock()
+        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+
+        cooldown = {
+            "default-days": 3,
+            "semver-major-days": 7,
+            "semver-minor-days": 3,
+            "semver-patch-days": 1,
+        }
+        expected_result = yaml.load(b"""
+version: 2
+updates:
+  - package-ecosystem: 'docker'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
+      semver-minor-days: 3
+      semver-patch-days: 1
+""")
+        result = build_dependabot_file(
+            repo, False, [], {}, None, "weekly", "", [], None, cooldown
+        )
+        self.assertEqual(result, expected_result)
+
+    def test_build_dependabot_file_with_cooldown_include_exclude(self):
+        """Test that cooldown with include/exclude lists is added correctly"""
+        repo = MagicMock()
+        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+
+        cooldown = {
+            "default-days": 5,
+            "include": ["lodash", "react*"],
+            "exclude": ["critical-pkg"],
+        }
+        expected_result = yaml.load(b"""
+version: 2
+updates:
+  - package-ecosystem: 'docker'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 5
+      include:
+        - 'lodash'
+        - 'react*'
+      exclude:
+        - 'critical-pkg'
+""")
+        result = build_dependabot_file(
+            repo, False, [], {}, None, "weekly", "", [], None, cooldown
+        )
+        self.assertEqual(result, expected_result)
+
+    def test_build_dependabot_file_with_cooldown_and_groups(self):
+        """Test that cooldown works alongside grouped dependencies"""
+        repo = MagicMock()
+        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+
+        cooldown = {"default-days": 3}
+        expected_result = yaml.load(b"""
+version: 2
+updates:
+  - package-ecosystem: 'docker'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    groups:
+      production-dependencies:
+        dependency-type: 'production'
+      development-dependencies:
+        dependency-type: 'development'
+    cooldown:
+      default-days: 3
+""")
+        result = build_dependabot_file(
+            repo, True, [], {}, None, "weekly", "", [], None, cooldown
+        )
+        self.assertEqual(result, expected_result)
+
+    def test_build_dependabot_file_with_cooldown_and_registries(self):
+        """Test that cooldown works alongside private registries"""
+        repo = MagicMock()
+        repo.file_contents.side_effect = lambda filename: filename == "package.json"
+
+        extra_config = yaml.load(b"""
+npm:
+  type: 'npm'
+  url: 'https://registry.example.com'
+""")
+        cooldown = {"default-days": 2}
+        expected_result = yaml.load(b"""
+version: 2
+registries:
+  npm:
+    type: 'npm'
+    url: 'https://registry.example.com'
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    registries:
+      - 'npm'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 2
+""")
+        result = build_dependabot_file(
+            repo, False, [], {}, None, "weekly", "", [], extra_config, cooldown
+        )
+        self.assertEqual(result, expected_result)
+
+    def test_build_dependabot_file_without_cooldown(self):
+        """Test that no cooldown section is added when cooldown is None"""
+        repo = MagicMock()
+        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+
+        expected_result = yaml.load(b"""
+version: 2
+updates:
+  - package-ecosystem: 'docker'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+""")
+        result = build_dependabot_file(
+            repo, False, [], {}, None, "weekly", "", [], None, None
+        )
+        self.assertEqual(result, expected_result)
+
+
+class TestValidateCooldownConfig(unittest.TestCase):
+    """Test the validate_cooldown_config function."""
+
+    def test_valid_default_days_only(self):
+        """Test valid cooldown with just default-days"""
+        validate_cooldown_config({"default-days": 3})
+
+    def test_valid_all_days(self):
+        """Test valid cooldown with all day parameters"""
+        validate_cooldown_config(
+            {
+                "default-days": 3,
+                "semver-major-days": 7,
+                "semver-minor-days": 3,
+                "semver-patch-days": 1,
+            }
+        )
+
+    def test_valid_with_include_exclude(self):
+        """Test valid cooldown with include and exclude lists"""
+        validate_cooldown_config(
+            {
+                "default-days": 5,
+                "include": ["lodash", "react*"],
+                "exclude": ["critical-pkg"],
+            }
+        )
+
+    def test_valid_zero_days(self):
+        """Test that zero is a valid value for days"""
+        validate_cooldown_config({"default-days": 0})
+
+    def test_invalid_not_a_dict(self):
+        """Test that non-dict cooldown raises ValueError"""
+        with self.assertRaises(ValueError):
+            validate_cooldown_config("not a dict")
+
+    def test_invalid_no_days_keys(self):
+        """Test that cooldown without any days key raises ValueError"""
+        with self.assertRaises(ValueError):
+            validate_cooldown_config({"include": ["lodash"]})
+
+    def test_invalid_negative_days(self):
+        """Test that negative days raises ValueError"""
+        with self.assertRaises(ValueError):
+            validate_cooldown_config({"default-days": -1})
+
+    def test_invalid_days_not_int(self):
+        """Test that non-integer days raises ValueError"""
+        with self.assertRaises(ValueError):
+            validate_cooldown_config({"default-days": "three"})
+
+    def test_invalid_days_bool(self):
+        """Test that boolean days raises ValueError"""
+        with self.assertRaises(ValueError):
+            validate_cooldown_config({"default-days": True})
+
+    def test_invalid_unknown_key(self):
+        """Test that unknown keys raise ValueError"""
+        with self.assertRaises(ValueError):
+            validate_cooldown_config({"default-days": 3, "unknown-key": 1})
+
+    def test_invalid_include_not_list(self):
+        """Test that non-list include raises ValueError"""
+        with self.assertRaises(ValueError):
+            validate_cooldown_config({"default-days": 3, "include": "lodash"})
+
+    def test_invalid_include_item_not_string(self):
+        """Test that non-string include items raise ValueError"""
+        with self.assertRaises(ValueError):
+            validate_cooldown_config({"default-days": 3, "include": [123]})
+
+    def test_invalid_include_too_many_items(self):
+        """Test that include with more than 150 items raises ValueError"""
+        with self.assertRaises(ValueError):
+            validate_cooldown_config(
+                {
+                    "default-days": 3,
+                    "include": [f"pkg-{i}" for i in range(151)],
+                }
+            )
+
+    def test_invalid_exclude_too_many_items(self):
+        """Test that exclude with more than 150 items raises ValueError"""
+        with self.assertRaises(ValueError):
+            validate_cooldown_config(
+                {
+                    "default-days": 3,
+                    "exclude": [f"pkg-{i}" for i in range(151)],
+                }
+            )
