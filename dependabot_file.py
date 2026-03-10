@@ -24,6 +24,8 @@ VALID_COOLDOWN_DAYS_KEYS = frozenset(
 )
 VALID_COOLDOWN_KEYS = VALID_COOLDOWN_DAYS_KEYS | {"include", "exclude"}
 MAX_COOLDOWN_LIST_ITEMS = 150
+MIN_COOLDOWN_DAYS = 1
+MAX_COOLDOWN_DAYS = 90
 
 
 def validate_cooldown_config(cooldown):
@@ -51,10 +53,15 @@ def validate_cooldown_config(cooldown):
             value = cooldown[key]
             if not isinstance(value, int) or isinstance(value, bool):
                 raise ValueError(
-                    f"Cooldown '{key}' must be a non-negative integer, got {type(value).__name__}"
+                    f"Cooldown '{key}' must be an integer between "
+                    f"{MIN_COOLDOWN_DAYS} and {MAX_COOLDOWN_DAYS}, "
+                    f"got {type(value).__name__}"
                 )
-            if value < 0:
-                raise ValueError(f"Cooldown '{key}' must be a non-negative integer")
+            if value < MIN_COOLDOWN_DAYS or value > MAX_COOLDOWN_DAYS:
+                raise ValueError(
+                    f"Cooldown '{key}' must be between "
+                    f"{MIN_COOLDOWN_DAYS} and {MAX_COOLDOWN_DAYS}"
+                )
             has_days = True
 
     if not has_days:

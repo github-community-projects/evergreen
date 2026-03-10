@@ -227,7 +227,7 @@ npm:
 | `include` | List of dependency names to apply cooldown to (up to 150 items, supports `*` wildcards). |
 | `exclude` | List of dependency names excluded from cooldown (up to 150 items, supports `*` wildcards). |
 
-At least one of the `*-days` parameters must be specified. All day values must be non-negative integers.
+At least one of the `*-days` parameters must be specified. All day values must be integers between 1 and 90.
 
 ### Example workflows
 

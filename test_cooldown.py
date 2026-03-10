@@ -34,8 +34,17 @@ class TestValidateCooldownConfig(unittest.TestCase):
         )
 
     def test_valid_zero_days(self):
-        """Test that zero is a valid value for days"""
-        validate_cooldown_config({"default-days": 0})
+        """Test that zero is below the minimum and raises ValueError"""
+        with self.assertRaises(ValueError):
+            validate_cooldown_config({"default-days": 0})
+
+    def test_valid_boundary_min(self):
+        """Test that 1 day is the minimum valid value"""
+        validate_cooldown_config({"default-days": 1})
+
+    def test_valid_boundary_max(self):
+        """Test that 90 days is the maximum valid value"""
+        validate_cooldown_config({"default-days": 90})
 
     def test_invalid_not_a_dict(self):
         """Test that non-dict cooldown raises ValueError"""
@@ -51,6 +60,11 @@ class TestValidateCooldownConfig(unittest.TestCase):
         """Test that negative days raises ValueError"""
         with self.assertRaises(ValueError):
             validate_cooldown_config({"default-days": -1})
+
+    def test_invalid_days_exceed_max(self):
+        """Test that days above 90 raises ValueError"""
+        with self.assertRaises(ValueError):
+            validate_cooldown_config({"default-days": 91})
 
     def test_invalid_days_not_int(self):
         """Test that non-integer days raises ValueError"""
