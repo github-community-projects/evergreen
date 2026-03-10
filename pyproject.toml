@@ -1,0 +1,25 @@
+[project]
+name = "evergreen"
+version = "1.0.0"
+description = "GitHub Action that enables Dependabot for all repositories in a GitHub organization."
+requires-python = ">=3.11"
+dependencies = [
+    "github3-py==4.0.1",
+    "python-dotenv==1.2.1",
+    "requests==2.32.5",
+    "ruamel-yaml==0.19.1",
+]
+
+[dependency-groups]
+dev = [
+    "black==26.1.0",
+    "flake8==7.3.0",
+    "isort==7.0.0",
+    "mypy==1.19.1",
+    "mypy-extensions==1.1.0",
+    "pylint==4.0.5",
+    "pytest==9.0.2",
+    "pytest-cov==7.0.0",
+    "types-PyYAML==6.0.12.20250915",
+    "types-requests==2.32.4.20260107",
+]

@@ -158,5 +158,8 @@ devenv.local.nix
 devenv.*
 .devenv*
 
+# Claude
+**/.claude/*.local.*
+
 # Local testing files
 dependabot-output.yaml
