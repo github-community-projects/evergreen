@@ -160,25 +160,19 @@ directory: "/"
     def test_build_dependabot_file_with_incorrect_indentation_in_extra_dependabot_config_file(
         self,
     ):
-        """Test incorrect indentation on extra_dependabot_config"""
-        repo = MagicMock()
-        repo.file_contents.side_effect = lambda f, filename="Gemfile": f == filename
-
-        # expected_result maintains existing ecosystem with custom configuration
-        # and adds new ecosystem
-        extra_dependabot_config = MagicMock()
-        extra_dependabot_config.content = base64.b64encode(b"""
+        """Test incorrect indentation on extra_dependabot_config is caught during YAML loading"""
+        # In production, extra_dependabot_config is loaded from a file via
+        # ruamel.yaml in evergreen.py before being passed to build_dependabot_file.
+        # Verify that malformed YAML raises an error at the loading stage.
+        yaml_loader = ruamel.yaml.YAML()
+        with self.assertRaises(ruamel.yaml.YAMLError):
+            yaml_loader.load(b"""
 npm:
 type: 'npm'
   url: 'https://yourprivateregistry/npm/'
   username: '${{secrets.username}}'
   password: '${{secrets.password}}'
   """)
-
-        with self.assertRaises(ruamel.yaml.YAMLError):
-            build_dependabot_file(
-                repo, False, [], {}, None, "weekly", "", [], extra_dependabot_config
-            )
 
     @patch.dict(os.environ, {"DEPENDABOT_CONFIG_FILE": "dependabot-config.yaml"})
     def test_build_dependabot_file_with_extra_dependabot_config_file(self):
@@ -804,6 +798,162 @@ updates:
 
         result = build_dependabot_file(
             repo, False, [], {}, existing_config, "weekly", "", [], None
+        )
+        self.assertEqual(result, expected_result)
+
+    def test_build_dependabot_file_with_cooldown_default_days_only(self):
+        """Test that cooldown with only default-days is added correctly"""
+        repo = MagicMock()
+        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+
+        cooldown = {"default-days": 3}
+        expected_result = yaml.load(b"""
+version: 2
+updates:
+  - package-ecosystem: 'docker'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 3
+""")
+        result = build_dependabot_file(
+            repo, False, [], {}, None, "weekly", "", [], None, cooldown
+        )
+        self.assertEqual(result, expected_result)
+
+    def test_build_dependabot_file_with_cooldown_all_params(self):
+        """Test that cooldown with all semver day parameters is added correctly"""
+        repo = MagicMock()
+        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+
+        cooldown = {
+            "default-days": 3,
+            "semver-major-days": 7,
+            "semver-minor-days": 3,
+            "semver-patch-days": 1,
+        }
+        expected_result = yaml.load(b"""
+version: 2
+updates:
+  - package-ecosystem: 'docker'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
+      semver-minor-days: 3
+      semver-patch-days: 1
+""")
+        result = build_dependabot_file(
+            repo, False, [], {}, None, "weekly", "", [], None, cooldown
+        )
+        self.assertEqual(result, expected_result)
+
+    def test_build_dependabot_file_with_cooldown_include_exclude(self):
+        """Test that cooldown with include/exclude lists is added correctly"""
+        repo = MagicMock()
+        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+
+        cooldown = {
+            "default-days": 5,
+            "include": ["lodash", "react*"],
+            "exclude": ["critical-pkg"],
+        }
+        expected_result = yaml.load(b"""
+version: 2
+updates:
+  - package-ecosystem: 'docker'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 5
+      include:
+        - 'lodash'
+        - 'react*'
+      exclude:
+        - 'critical-pkg'
+""")
+        result = build_dependabot_file(
+            repo, False, [], {}, None, "weekly", "", [], None, cooldown
+        )
+        self.assertEqual(result, expected_result)
+
+    def test_build_dependabot_file_with_cooldown_and_groups(self):
+        """Test that cooldown works alongside grouped dependencies"""
+        repo = MagicMock()
+        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+
+        cooldown = {"default-days": 3}
+        expected_result = yaml.load(b"""
+version: 2
+updates:
+  - package-ecosystem: 'docker'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    groups:
+      production-dependencies:
+        dependency-type: 'production'
+      development-dependencies:
+        dependency-type: 'development'
+    cooldown:
+      default-days: 3
+""")
+        result = build_dependabot_file(
+            repo, True, [], {}, None, "weekly", "", [], None, cooldown
+        )
+        self.assertEqual(result, expected_result)
+
+    def test_build_dependabot_file_with_cooldown_and_registries(self):
+        """Test that cooldown works alongside private registries"""
+        repo = MagicMock()
+        repo.file_contents.side_effect = lambda filename: filename == "package.json"
+
+        extra_config = yaml.load(b"""
+npm:
+  type: 'npm'
+  url: 'https://registry.example.com'
+""")
+        cooldown = {"default-days": 2}
+        expected_result = yaml.load(b"""
+version: 2
+registries:
+  npm:
+    type: 'npm'
+    url: 'https://registry.example.com'
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    registries:
+      - 'npm'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 2
+""")
+        result = build_dependabot_file(
+            repo, False, [], {}, None, "weekly", "", [], extra_config, cooldown
+        )
+        self.assertEqual(result, expected_result)
+
+    def test_build_dependabot_file_without_cooldown(self):
+        """Test that no cooldown section is added when cooldown is None"""
+        repo = MagicMock()
+        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+
+        expected_result = yaml.load(b"""
+version: 2
+updates:
+  - package-ecosystem: 'docker'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+""")
+        result = build_dependabot_file(
+            repo, False, [], {}, None, "weekly", "", [], None, None
         )
         self.assertEqual(result, expected_result)
 

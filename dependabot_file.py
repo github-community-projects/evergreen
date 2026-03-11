@@ -3,6 +3,7 @@
 import base64
 import copy
 import io
+from collections.abc import Mapping
 
 import github3
 import ruamel.yaml
@@ -19,6 +20,75 @@ yaml = ruamel.yaml.YAML()
 stream = io.StringIO()
 
 
+COOLDOWN_DAYS_KEYS_ORDERED = (
+    "default-days",
+    "semver-major-days",
+    "semver-minor-days",
+    "semver-patch-days",
+)
+VALID_COOLDOWN_DAYS_KEYS = frozenset(COOLDOWN_DAYS_KEYS_ORDERED)
+VALID_COOLDOWN_KEYS = VALID_COOLDOWN_DAYS_KEYS | {"include", "exclude"}
+MAX_COOLDOWN_LIST_ITEMS = 150
+MIN_COOLDOWN_DAYS = 1
+MAX_COOLDOWN_DAYS = 90
+
+
+def validate_cooldown_config(cooldown):
+    """
+    Validate the cooldown configuration from the dependabot config file.
+
+    Args:
+        cooldown: dict with cooldown configuration
+
+    Raises:
+        ValueError: if the cooldown configuration is invalid
+    """
+    if not isinstance(cooldown, Mapping):
+        raise ValueError("Cooldown configuration must be a mapping")
+
+    unknown_keys = set(cooldown.keys()) - VALID_COOLDOWN_KEYS
+    if unknown_keys:
+        raise ValueError(
+            f"Unknown cooldown configuration keys: {', '.join(sorted(unknown_keys))}"
+        )
+
+    has_days = False
+    for key in VALID_COOLDOWN_DAYS_KEYS:
+        if key in cooldown:
+            value = cooldown[key]
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise ValueError(
+                    f"Cooldown '{key}' must be an integer between "
+                    f"{MIN_COOLDOWN_DAYS} and {MAX_COOLDOWN_DAYS}, "
+                    f"got {type(value).__name__}"
+                )
+            if value < MIN_COOLDOWN_DAYS or value > MAX_COOLDOWN_DAYS:
+                raise ValueError(
+                    f"Cooldown '{key}' must be between "
+                    f"{MIN_COOLDOWN_DAYS} and {MAX_COOLDOWN_DAYS}"
+                )
+            has_days = True
+
+    if not has_days:
+        raise ValueError(
+            "Cooldown configuration must include at least one of: "
+            + ", ".join(sorted(VALID_COOLDOWN_DAYS_KEYS))
+        )
+
+    for list_key in ("include", "exclude"):
+        if list_key in cooldown:
+            items = cooldown[list_key]
+            if not isinstance(items, list):
+                raise ValueError(f"Cooldown '{list_key}' must be a list")
+            if len(items) > MAX_COOLDOWN_LIST_ITEMS:
+                raise ValueError(
+                    f"Cooldown '{list_key}' must have at most {MAX_COOLDOWN_LIST_ITEMS} items"
+                )
+            for item in items:
+                if not isinstance(item, str):
+                    raise ValueError(f"Cooldown '{list_key}' items must be strings")
+
+
 def make_dependabot_config(
     ecosystem,
     group_dependencies,
@@ -27,9 +97,12 @@ def make_dependabot_config(
     labels,
     dependabot_config,
     extra_dependabot_config,
-) -> str:
+    cooldown=None,
+) -> None:
     """
-    Make the dependabot configuration for a specific package ecosystem
+    Make the dependabot configuration for a specific package ecosystem.
+
+    Mutates dependabot_config in place by appending an update entry.
 
     Args:
         ecosystem: the package ecosystem to make the dependabot configuration for
@@ -39,9 +112,7 @@ def make_dependabot_config(
         labels: the list of labels to be added to dependabot configuration
         dependabot_config: extra dependabot configs
         extra_dependabot_config: File with the configuration to add dependabot configs (ex: private registries)
-
-    Returns:
-        str: the dependabot configuration for the package ecosystem
+        cooldown: optional cooldown configuration dict to delay version update PRs
     """
 
     dependabot_config["updates"].append(
@@ -97,7 +168,17 @@ def make_dependabot_config(
             }
         )
 
-    return yaml.dump(dependabot_config, stream)
+    if cooldown:
+        cooldown_config = {}
+        for key in COOLDOWN_DAYS_KEYS_ORDERED:
+            if key in cooldown:
+                cooldown_config[key] = cooldown[key]
+        for list_key in ("include", "exclude"):
+            if list_key in cooldown:
+                cooldown_config[list_key] = [
+                    SingleQuotedScalarString(item) for item in cooldown[list_key]
+                ]
+        dependabot_config["updates"][-1].update({"cooldown": cooldown_config})
 
 
 def build_dependabot_file(
@@ -110,6 +191,7 @@ def build_dependabot_file(
     schedule_day,
     labels,
     extra_dependabot_config,
+    cooldown=None,
 ) -> str | None:
     """
     Build the dependabot.yml file for a repo based on the repo contents
@@ -124,6 +206,7 @@ def build_dependabot_file(
         schedule_day: the day of the week to run dependabot ex: "monday" if schedule is "daily"
         labels: the list of labels to be added to dependabot configuration
         extra_dependabot_config: File with the configuration to add dependabot configs (ex: private registries)
+        cooldown: optional cooldown configuration dict to delay version update PRs
 
     Returns:
         str: the dependabot.yml file for the repo
@@ -203,6 +286,7 @@ def build_dependabot_file(
                         labels,
                         dependabot_file,
                         extra_dependabot_config,
+                        cooldown,
                     )
                     break
             except OptionalFileNotFoundError:
@@ -224,6 +308,7 @@ def build_dependabot_file(
                         labels,
                         dependabot_file,
                         extra_dependabot_config,
+                        cooldown,
                     )
                     break
         except github3.exceptions.NotFoundError:
@@ -243,6 +328,7 @@ def build_dependabot_file(
                         labels,
                         dependabot_file,
                         extra_dependabot_config,
+                        cooldown,
                     )
                     break
         except github3.exceptions.NotFoundError:
@@ -262,6 +348,7 @@ def build_dependabot_file(
                         labels,
                         dependabot_file,
                         extra_dependabot_config,
+                        cooldown,
                     )
                     break
         except github3.exceptions.NotFoundError:

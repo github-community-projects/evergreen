@@ -10,7 +10,7 @@ import env
 import github3
 import requests
 import ruamel.yaml
-from dependabot_file import build_dependabot_file
+from dependabot_file import build_dependabot_file, validate_cooldown_config
 from exceptions import OptionalFileNotFoundError, check_optional_file
 
 
@@ -162,6 +162,16 @@ def main():  # pragma: no cover
             # If no dependabot configuration file is present set the variable empty
             extra_dependabot_config = None
 
+        # Extract cooldown config if present (it's not a registry/ecosystem key)
+        cooldown = None
+        if extra_dependabot_config and "cooldown" in extra_dependabot_config:
+            cooldown = extra_dependabot_config.pop("cooldown")
+            try:
+                validate_cooldown_config(cooldown)
+            except ValueError as e:
+                print(f"Invalid cooldown configuration: {e}")
+                cooldown = None
+
         print(f"Checking {repo.full_name} for compatible package managers")
         # Try to detect package managers and build a dependabot file
         dependabot_file = build_dependabot_file(
@@ -174,6 +184,7 @@ def main():  # pragma: no cover
             schedule_day,
             labels,
             extra_dependabot_config,
+            cooldown,
         )
 
         yaml = ruamel.yaml.YAML()

@@ -187,6 +187,48 @@ updates:
       - "new"
 ```
 
+### Cooldown configuration
+
+Dependabot supports a [cooldown](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference#cooldown-) feature that delays version update pull requests for a configurable number of days after a new version is released. This is useful to avoid updating to freshly-released versions that may contain issues.
+
+> **Note:** Cooldown only applies to **version updates**, not security updates. Security updates are always created immediately.
+
+To configure cooldown, add a `cooldown` key to the `DEPENDABOT_CONFIG_FILE`:
+
+```yaml
+# Cooldown configuration (applied globally to all ecosystems)
+cooldown:
+  default-days: 3
+  semver-major-days: 7
+  semver-minor-days: 3
+  semver-patch-days: 1
+  include:
+    - 'lodash'
+    - 'react*'
+  exclude:
+    - 'critical-package'
+
+# Private registry configurations (optional, existing feature)
+npm:
+  type: "npm"
+  url: "https://yourprivateregistry/npm/"
+  username: "${{secrets.username}}"
+  password: "${{secrets.password}}"
+```
+
+#### Cooldown options
+
+| Parameter | Description |
+| --- | --- |
+| `default-days` | Default cooldown period in days for dependencies without specific rules. |
+| `semver-major-days` | Cooldown period in days for major version updates. |
+| `semver-minor-days` | Cooldown period in days for minor version updates. |
+| `semver-patch-days` | Cooldown period in days for patch version updates. |
+| `include` | List of dependency names to apply cooldown to (up to 150 items, supports `*` wildcards). |
+| `exclude` | List of dependency names excluded from cooldown (up to 150 items, supports `*` wildcards). |
+
+At least one of the `*-days` parameters must be specified. All day values must be integers between 1 and 90.
+
 ### Example workflows
 
 #### Basic
