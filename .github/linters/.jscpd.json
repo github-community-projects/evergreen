@@ -1,5 +1,5 @@
 {
   "threshold": 25,
-  "ignore": ["/github/workspace/test*"],
+  "ignore": ["test*", "**/.venv/**"],
   "absolute": true
 }
