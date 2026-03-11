@@ -160,25 +160,19 @@ directory: "/"
     def test_build_dependabot_file_with_incorrect_indentation_in_extra_dependabot_config_file(
         self,
     ):
-        """Test incorrect indentation on extra_dependabot_config"""
-        repo = MagicMock()
-        repo.file_contents.side_effect = lambda f, filename="Gemfile": f == filename
-
-        # expected_result maintains existing ecosystem with custom configuration
-        # and adds new ecosystem
-        extra_dependabot_config = MagicMock()
-        extra_dependabot_config.content = base64.b64encode(b"""
+        """Test incorrect indentation on extra_dependabot_config is caught during YAML loading"""
+        # In production, extra_dependabot_config is loaded from a file via
+        # ruamel.yaml in evergreen.py before being passed to build_dependabot_file.
+        # Verify that malformed YAML raises an error at the loading stage.
+        yaml_loader = ruamel.yaml.YAML()
+        with self.assertRaises(ruamel.yaml.YAMLError):
+            yaml_loader.load(b"""
 npm:
 type: 'npm'
   url: 'https://yourprivateregistry/npm/'
   username: '${{secrets.username}}'
   password: '${{secrets.password}}'
   """)
-
-        with self.assertRaises(ruamel.yaml.YAMLError):
-            build_dependabot_file(
-                repo, False, [], {}, None, "weekly", "", [], extra_dependabot_config
-            )
 
     @patch.dict(os.environ, {"DEPENDABOT_CONFIG_FILE": "dependabot-config.yaml"})
     def test_build_dependabot_file_with_extra_dependabot_config_file(self):

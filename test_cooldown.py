@@ -3,6 +3,7 @@
 import unittest
 
 from dependabot_file import validate_cooldown_config
+from ruamel.yaml import YAML
 
 
 class TestValidateCooldownConfig(unittest.TestCase):
@@ -11,6 +12,12 @@ class TestValidateCooldownConfig(unittest.TestCase):
     def test_valid_default_days_only(self):
         """Test valid cooldown with just default-days"""
         validate_cooldown_config({"default-days": 3})
+
+    def test_valid_ruamel_commented_map(self):
+        """Test that ruamel.yaml CommentedMap is accepted as a valid mapping"""
+        yaml = YAML()
+        cooldown = yaml.load(b"default-days: 5\nsemver-major-days: 14\n")
+        validate_cooldown_config(cooldown)
 
     def test_valid_all_days(self):
         """Test valid cooldown with all day parameters"""

@@ -3,6 +3,7 @@
 import base64
 import copy
 import io
+from collections.abc import Mapping
 
 import github3
 import ruamel.yaml
@@ -19,9 +20,13 @@ yaml = ruamel.yaml.YAML()
 stream = io.StringIO()
 
 
-VALID_COOLDOWN_DAYS_KEYS = frozenset(
-    {"default-days", "semver-major-days", "semver-minor-days", "semver-patch-days"}
+COOLDOWN_DAYS_KEYS_ORDERED = (
+    "default-days",
+    "semver-major-days",
+    "semver-minor-days",
+    "semver-patch-days",
 )
+VALID_COOLDOWN_DAYS_KEYS = frozenset(COOLDOWN_DAYS_KEYS_ORDERED)
 VALID_COOLDOWN_KEYS = VALID_COOLDOWN_DAYS_KEYS | {"include", "exclude"}
 MAX_COOLDOWN_LIST_ITEMS = 150
 MIN_COOLDOWN_DAYS = 1
@@ -38,7 +43,7 @@ def validate_cooldown_config(cooldown):
     Raises:
         ValueError: if the cooldown configuration is invalid
     """
-    if not isinstance(cooldown, dict):
+    if not isinstance(cooldown, Mapping):
         raise ValueError("Cooldown configuration must be a mapping")
 
     unknown_keys = set(cooldown.keys()) - VALID_COOLDOWN_KEYS
@@ -93,9 +98,11 @@ def make_dependabot_config(
     dependabot_config,
     extra_dependabot_config,
     cooldown=None,
-) -> str:
+) -> None:
     """
-    Make the dependabot configuration for a specific package ecosystem
+    Make the dependabot configuration for a specific package ecosystem.
+
+    Mutates dependabot_config in place by appending an update entry.
 
     Args:
         ecosystem: the package ecosystem to make the dependabot configuration for
@@ -106,9 +113,6 @@ def make_dependabot_config(
         dependabot_config: extra dependabot configs
         extra_dependabot_config: File with the configuration to add dependabot configs (ex: private registries)
         cooldown: optional cooldown configuration dict to delay version update PRs
-
-    Returns:
-        str: the dependabot configuration for the package ecosystem
     """
 
     dependabot_config["updates"].append(
@@ -166,7 +170,7 @@ def make_dependabot_config(
 
     if cooldown:
         cooldown_config = {}
-        for key in VALID_COOLDOWN_DAYS_KEYS:
+        for key in COOLDOWN_DAYS_KEYS_ORDERED:
             if key in cooldown:
                 cooldown_config[key] = cooldown[key]
         for list_key in ("include", "exclude"):
@@ -175,8 +179,6 @@ def make_dependabot_config(
                     SingleQuotedScalarString(item) for item in cooldown[list_key]
                 ]
         dependabot_config["updates"][-1].update({"cooldown": cooldown_config})
-
-    return yaml.dump(dependabot_config, stream)
 
 
 def build_dependabot_file(
