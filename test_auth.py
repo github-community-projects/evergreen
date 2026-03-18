@@ -56,9 +56,9 @@ class TestAuth(unittest.TestCase):
         mock = mock_ghe.return_value
         mock.login_as_app_installation = MagicMock(return_value=True)
         result = auth.auth_to_github(
-            "", "123", "123", b"123", "https://github.example.com", True
+            "", 123, 456, b"123", "https://github.example.com", True
         )
-        mock.login_as_app_installation.assert_called_once()
+        mock.login_as_app_installation.assert_called_once_with(b"123", "123", 456)
         self.assertEqual(result, mock)
 
     @patch("github3.github.GitHub")
@@ -69,9 +69,9 @@ class TestAuth(unittest.TestCase):
         mock = mock_gh.return_value
         mock.login_as_app_installation = MagicMock(return_value=True)
         result = auth.auth_to_github(
-            "", "123", "123", b"123", "https://github.example.com", False
+            "", 123, 456, b"123", "https://github.example.com", False
         )
-        mock.login_as_app_installation.assert_called_once()
+        mock.login_as_app_installation.assert_called_once_with(b"123", "123", 456)
         self.assertEqual(result, mock)
 
     @patch("github3.apps.create_jwt_headers", MagicMock(return_value="gh_token"))
