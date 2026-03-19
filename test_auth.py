@@ -56,9 +56,9 @@ class TestAuth(unittest.TestCase):
         mock = mock_ghe.return_value
         mock.login_as_app_installation = MagicMock(return_value=True)
         result = auth.auth_to_github(
-            "", "123", "123", b"123", "https://github.example.com", True
+            "", 123, 456, b"123", "https://github.example.com", True
         )
-        mock.login_as_app_installation.assert_called_once()
+        mock.login_as_app_installation.assert_called_once_with(b"123", "123", 456)
         self.assertEqual(result, mock)
 
     @patch("github3.github.GitHub")
@@ -69,9 +69,9 @@ class TestAuth(unittest.TestCase):
         mock = mock_gh.return_value
         mock.login_as_app_installation = MagicMock(return_value=True)
         result = auth.auth_to_github(
-            "", "123", "123", b"123", "https://github.example.com", False
+            "", 123, 456, b"123", "https://github.example.com", False
         )
-        mock.login_as_app_installation.assert_called_once()
+        mock.login_as_app_installation.assert_called_once_with(b"123", "123", 456)
         self.assertEqual(result, mock)
 
     @patch("github3.apps.create_jwt_headers", MagicMock(return_value="gh_token"))
@@ -91,6 +91,32 @@ class TestAuth(unittest.TestCase):
         )
 
         self.assertEqual(result, dummy_token)
+
+    @patch(
+        "github3.apps.create_jwt_headers",
+        return_value={"Authorization": "Bearer gh_token"},
+    )
+    @patch("requests.post")
+    def test_get_github_app_installation_token_casts_int_app_id_to_str(
+        self, mock_post, mock_create_jwt
+    ):
+        """
+        Test that get_github_app_installation_token casts an int gh_app_id to str
+        before passing it to create_jwt_headers (PyJWT requires iss to be a string).
+        """
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {"token": "dummytoken"}
+        mock_post.return_value = mock_response
+
+        auth.get_github_app_installation_token(
+            ghe="",
+            gh_app_id=12345,
+            gh_app_private_key_bytes=b"private_key",
+            gh_app_installation_id=678910,
+        )
+
+        mock_create_jwt.assert_called_once_with(b"private_key", "12345")
 
     @patch("github3.apps.create_jwt_headers", MagicMock(return_value="gh_token"))
     @patch("auth.requests.post")
