@@ -92,6 +92,32 @@ class TestAuth(unittest.TestCase):
 
         self.assertEqual(result, dummy_token)
 
+    @patch(
+        "github3.apps.create_jwt_headers",
+        return_value={"Authorization": "Bearer gh_token"},
+    )
+    @patch("requests.post")
+    def test_get_github_app_installation_token_casts_int_app_id_to_str(
+        self, mock_post, mock_create_jwt
+    ):
+        """
+        Test that get_github_app_installation_token casts an int gh_app_id to str
+        before passing it to create_jwt_headers (PyJWT requires iss to be a string).
+        """
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {"token": "dummytoken"}
+        mock_post.return_value = mock_response
+
+        auth.get_github_app_installation_token(
+            ghe="",
+            gh_app_id=12345,
+            gh_app_private_key_bytes=b"private_key",
+            gh_app_installation_id=678910,
+        )
+
+        mock_create_jwt.assert_called_once_with(b"private_key", "12345")
+
     @patch("github3.apps.create_jwt_headers", MagicMock(return_value="gh_token"))
     @patch("auth.requests.post")
     def test_get_github_app_installation_token_request_failure(self, mock_post):
