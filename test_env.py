@@ -930,6 +930,25 @@ we can keep our dependencies up to date and secure.",
         {
             "ORGANIZATION": "my_organization",
             "GH_TOKEN": "my_token",
+            "EXEMPT_ECOSYSTEMS": "gomod,docekr",
+        },
+        clear=True,
+    )
+    def test_get_env_vars_exempt_ecosystems_unsupported_ecosystem(self):
+        """Test that EXEMPT_ECOSYSTEMS raises ValueError for unrecognized ecosystems"""
+        with self.assertRaises(ValueError) as cm:
+            get_env_vars(True)
+        the_exception = cm.exception
+        self.assertEqual(
+            str(the_exception),
+            "EXEMPT_ECOSYSTEMS environment variable contains an unrecognized package-ecosystem: 'docekr'.",
+        )
+
+    @patch.dict(
+        os.environ,
+        {
+            "ORGANIZATION": "my_organization",
+            "GH_TOKEN": "my_token",
             "ENABLE_SECURITY_UPDATES": "false",
             "FILTER_VISIBILITY": "private,private,public",
         },
