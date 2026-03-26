@@ -304,6 +304,8 @@ Please enable it by merging this pull request so that we can keep our dependenci
     if exempt_ecosystems:
         for ecosystem in exempt_ecosystems.split(","):
             ecosystem = ecosystem.lower().strip()
+            if not ecosystem:
+                continue
             if ecosystem not in SUPPORTED_PACKAGE_ECOSYSTEMS:
                 raise ValueError(
                     f"EXEMPT_ECOSYSTEMS environment variable contains an unrecognized package-ecosystem: '{ecosystem}'."

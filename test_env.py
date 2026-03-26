@@ -950,6 +950,22 @@ we can keep our dependencies up to date and secure.",
             "ORGANIZATION": "my_organization",
             "GH_TOKEN": "my_token",
             "ENABLE_SECURITY_UPDATES": "false",
+            "FILTER_VISIBILITY": "private,public",
+            "EXEMPT_ECOSYSTEMS": "gomod,docker,",
+        },
+        clear=True,
+    )
+    def test_get_env_vars_exempt_ecosystems_trailing_comma(self):
+        """Test that EXEMPT_ECOSYSTEMS tolerates trailing commas"""
+        result = get_env_vars(True)
+        self.assertEqual(result[21], ["gomod", "docker"])
+
+    @patch.dict(
+        os.environ,
+        {
+            "ORGANIZATION": "my_organization",
+            "GH_TOKEN": "my_token",
+            "ENABLE_SECURITY_UPDATES": "false",
             "FILTER_VISIBILITY": "private,private,public",
         },
         clear=True,
