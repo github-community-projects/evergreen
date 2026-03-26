@@ -12,6 +12,23 @@ MAX_TITLE_LENGTH = 70
 MAX_BODY_LENGTH = 65536
 MAX_COMMIT_MESSAGE_LENGTH = 65536
 
+SUPPORTED_PACKAGE_ECOSYSTEMS = [
+    "bundler",
+    "cargo",
+    "composer",
+    "devcontainers",
+    "docker",
+    "github-actions",
+    "gomod",
+    "gradle",
+    "maven",
+    "mix",
+    "npm",
+    "nuget",
+    "pip",
+    "terraform",
+]
+
 
 def get_bool_env_var(env_var_name: str, default: bool = False) -> bool:
     """Get a boolean environment variable.
@@ -73,20 +90,8 @@ def parse_repo_specific_exemptions(repo_specific_exemptions_str: str) -> dict:
             repo, ecosystems = exemption.split(":")
             cleaned_ecosystems = []
             for ecosystem in ecosystems.split(","):
-                ecosystem = ecosystem.strip()
-                if ecosystem not in [
-                    "bundler",
-                    "cargo",
-                    "composer",
-                    "docker",
-                    "github-actions",
-                    "gomod",
-                    "mix",
-                    "npm",
-                    "nuget",
-                    "pip",
-                    "terraform",
-                ]:
+                ecosystem = ecosystem.strip().lower()
+                if ecosystem not in SUPPORTED_PACKAGE_ECOSYSTEMS:
                     raise ValueError(
                         "REPO_SPECIFIC_EXEMPTIONS environment variable not formatted correctly. Unrecognized package-ecosystem."
                     )
@@ -297,9 +302,15 @@ Please enable it by merging this pull request so that we can keep our dependenci
     exempt_ecosystems = os.getenv("EXEMPT_ECOSYSTEMS")
     exempt_ecosystems_list = []
     if exempt_ecosystems:
-        exempt_ecosystems_list = [
-            ecosystem.lower().strip() for ecosystem in exempt_ecosystems.split(",")
-        ]
+        for ecosystem in exempt_ecosystems.split(","):
+            ecosystem = ecosystem.lower().strip()
+            if not ecosystem:
+                continue
+            if ecosystem not in SUPPORTED_PACKAGE_ECOSYSTEMS:
+                raise ValueError(
+                    f"EXEMPT_ECOSYSTEMS environment variable contains an unrecognized package-ecosystem: '{ecosystem}'."
+                )
+            exempt_ecosystems_list.append(ecosystem)
 
     project_id = os.getenv("PROJECT_ID")
     if project_id and not project_id.isnumeric():

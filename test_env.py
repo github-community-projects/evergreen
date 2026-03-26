@@ -930,6 +930,74 @@ we can keep our dependencies up to date and secure.",
         {
             "ORGANIZATION": "my_organization",
             "GH_TOKEN": "my_token",
+            "EXEMPT_ECOSYSTEMS": "gomod,docekr",
+        },
+        clear=True,
+    )
+    def test_get_env_vars_exempt_ecosystems_unsupported_ecosystem(self):
+        """Test that EXEMPT_ECOSYSTEMS raises ValueError for unrecognized ecosystems"""
+        with self.assertRaises(ValueError) as cm:
+            get_env_vars(True)
+        the_exception = cm.exception
+        self.assertEqual(
+            str(the_exception),
+            "EXEMPT_ECOSYSTEMS environment variable contains an unrecognized package-ecosystem: 'docekr'.",
+        )
+
+    @patch.dict(
+        os.environ,
+        {
+            "ORGANIZATION": "my_organization",
+            "GH_TOKEN": "my_token",
+            "ENABLE_SECURITY_UPDATES": "false",
+            "FILTER_VISIBILITY": "private,public",
+            "EXEMPT_ECOSYSTEMS": "gomod,docker,",
+        },
+        clear=True,
+    )
+    def test_get_env_vars_exempt_ecosystems_trailing_comma(self):
+        """Test that EXEMPT_ECOSYSTEMS tolerates trailing commas"""
+        expected_result = (
+            "my_organization",
+            [],
+            "",  # search_query
+            None,
+            None,
+            b"",
+            False,
+            "my_token",
+            "",
+            [],
+            "pull",
+            "Enable Dependabot",
+            "Dependabot could be enabled for this repository. \
+Please enable it by merging this pull request so that \
+we can keep our dependencies up to date and secure.",
+            "",
+            False,
+            "Create/Update dependabot.yaml",
+            None,
+            False,
+            ["private", "public"],
+            None,  # batch_size
+            False,  # enable_security_updates
+            ["gomod", "docker"],  # exempt_ecosystems
+            False,  # update_existing
+            {},  # repo_specific_exemptions
+            "weekly",  # schedule
+            "",  # schedule_day
+            None,  # team_name
+            [],  # labels
+            None,
+        )
+        result = get_env_vars(True)
+        self.assertEqual(result, expected_result)
+
+    @patch.dict(
+        os.environ,
+        {
+            "ORGANIZATION": "my_organization",
+            "GH_TOKEN": "my_token",
             "ENABLE_SECURITY_UPDATES": "false",
             "FILTER_VISIBILITY": "private,private,public",
         },
