@@ -16,9 +16,12 @@ SUPPORTED_PACKAGE_ECOSYSTEMS = [
     "bundler",
     "cargo",
     "composer",
+    "devcontainers",
     "docker",
     "github-actions",
     "gomod",
+    "gradle",
+    "maven",
     "mix",
     "npm",
     "nuget",
@@ -87,7 +90,7 @@ def parse_repo_specific_exemptions(repo_specific_exemptions_str: str) -> dict:
             repo, ecosystems = exemption.split(":")
             cleaned_ecosystems = []
             for ecosystem in ecosystems.split(","):
-                ecosystem = ecosystem.strip()
+                ecosystem = ecosystem.strip().lower()
                 if ecosystem not in SUPPORTED_PACKAGE_ECOSYSTEMS:
                     raise ValueError(
                         "REPO_SPECIFIC_EXEMPTIONS environment variable not formatted correctly. Unrecognized package-ecosystem."
