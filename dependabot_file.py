@@ -224,6 +224,8 @@ def build_dependabot_file(
         "terraform": False,
         "github-actions": False,
         "maven": False,
+        "gradle": False,
+        "devcontainers": False,
         "bazel": False,
         "bun": False,
         "conda": False,
