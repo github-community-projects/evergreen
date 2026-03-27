@@ -224,6 +224,21 @@ def build_dependabot_file(
         "terraform": False,
         "github-actions": False,
         "maven": False,
+        "bazel": False,
+        "bun": False,
+        "conda": False,
+        "docker-compose": False,
+        "dotnet-sdk": False,
+        "elm": False,
+        "gitsubmodule": False,
+        "helm": False,
+        "julia": False,
+        "pre-commit": False,
+        "pub": False,
+        "rust-toolchain": False,
+        "swift": False,
+        "uv": False,
+        "vcpkg": False,
     }
 
     # create a local copy in order to avoid overwriting the global exemption list
@@ -268,6 +283,21 @@ def build_dependabot_file(
         "docker": ["Dockerfile"],
         "maven": ["pom.xml"],
         "gradle": ["build.gradle", "build.gradle.kts"],
+        "bazel": ["MODULE.bazel", "WORKSPACE", "WORKSPACE.bazel"],
+        "bun": ["bun.lock"],
+        "conda": ["environment.yml", "conda.yaml"],
+        "docker-compose": ["docker-compose.yml", "compose.yaml"],
+        "dotnet-sdk": ["global.json"],
+        "elm": ["elm.json"],
+        "gitsubmodule": [".gitmodules"],
+        "helm": ["Chart.yaml"],
+        "julia": ["Project.toml"],
+        "pre-commit": [".pre-commit-config.yaml"],
+        "pub": ["pubspec.yaml"],
+        "rust-toolchain": ["rust-toolchain.toml"],
+        "swift": ["Package.swift"],
+        "uv": ["uv.lock"],
+        "vcpkg": ["vcpkg.json"],
     }
 
     # Detect package managers where manifest files have known names

@@ -420,6 +420,43 @@ updates:
         )
         self.assertEqual(result, expected_result)
 
+    def test_build_dependabot_file_with_new_ecosystems(self):
+        """Test that the dependabot.yml file is built correctly for newly added ecosystems"""
+        ecosystems = {
+            "bazel": "MODULE.bazel",
+            "bun": "bun.lock",
+            "conda": "environment.yml",
+            "docker-compose": "docker-compose.yml",
+            "dotnet-sdk": "global.json",
+            "elm": "elm.json",
+            "gitsubmodule": ".gitmodules",
+            "helm": "Chart.yaml",
+            "julia": "Project.toml",
+            "pre-commit": ".pre-commit-config.yaml",
+            "pub": "pubspec.yaml",
+            "rust-toolchain": "rust-toolchain.toml",
+            "swift": "Package.swift",
+            "uv": "uv.lock",
+            "vcpkg": "vcpkg.json",
+        }
+        for ecosystem, manifest_file in ecosystems.items():
+            with self.subTest(ecosystem=ecosystem, manifest_file=manifest_file):
+                repo = MagicMock()
+                repo.file_contents.side_effect = lambda f, mf=manifest_file: f == mf
+
+                expected_result = yaml.load(f"""
+version: 2
+updates:
+  - package-ecosystem: '{ecosystem}'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+""".encode())
+                result = build_dependabot_file(
+                    repo, False, [], {}, None, "weekly", "", [], None
+                )
+                self.assertEqual(result, expected_result)
+
     def test_build_dependabot_file_with_terraform_with_files(self):
         """Test that the dependabot.yml file is built correctly with Terraform"""
         repo = MagicMock()
