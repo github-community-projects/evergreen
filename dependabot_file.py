@@ -299,12 +299,17 @@ def build_dependabot_file(
         "gitsubmodule": [".gitmodules"],
         "helm": ["Chart.yaml"],
         "julia": ["Project.toml"],
-        "pre-commit": [".pre-commit-config.yaml"],
+        "pre-commit": [
+            ".pre-commit-config.yaml",
+            ".pre-commit-config.yml",
+            ".pre-commit.yaml",
+            ".pre-commit.yml",
+        ],
         "pub": ["pubspec.yaml"],
         "rust-toolchain": ["rust-toolchain.toml", "rust-toolchain"],
         "swift": ["Package.swift"],
         "uv": ["uv.lock"],
-        "vcpkg": ["vcpkg.json"],
+        "vcpkg": ["vcpkg.json", "vcpkg-configuration.json"],
     }
 
     # Detect package managers where manifest files have known names
