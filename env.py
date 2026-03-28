@@ -13,20 +13,35 @@ MAX_BODY_LENGTH = 65536
 MAX_COMMIT_MESSAGE_LENGTH = 65536
 
 SUPPORTED_PACKAGE_ECOSYSTEMS = [
+    "bazel",
+    "bun",
     "bundler",
     "cargo",
     "composer",
+    "conda",
     "devcontainers",
     "docker",
+    "docker-compose",
+    "dotnet-sdk",
+    "elm",
+    "gitsubmodule",
     "github-actions",
     "gomod",
     "gradle",
+    "helm",
+    "julia",
     "maven",
     "mix",
     "npm",
     "nuget",
     "pip",
+    "pre-commit",
+    "pub",
+    "rust-toolchain",
+    "swift",
     "terraform",
+    "uv",
+    "vcpkg",
 ]
 
 

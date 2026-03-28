@@ -366,59 +366,57 @@ updates:
         )
         self.assertEqual(result, expected_result)
 
-    def test_build_dependabot_file_with_docker(self):
-        """Test that the dependabot.yml file is built correctly with Docker"""
-        repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
-
-        expected_result = yaml.load(b"""
-version: 2
-updates:
-  - package-ecosystem: 'docker'
-    directory: '/'
-    schedule:
-      interval: 'weekly'
-""")
-        result = build_dependabot_file(
-            repo, False, [], {}, None, "weekly", "", [], None
+    def test_build_dependabot_file_with_new_ecosystems(self):
+        """Test that the dependabot.yml file is built correctly for newly added ecosystems.
+        Each (ecosystem, manifest_file) pair gets its own subTest so every
+        alternative manifest filename is verified, not just the first one."""
+        tmpl = (
+            "version: 2\nupdates:\n  - package-ecosystem: '{}'"
+            "\n    directory: '/'\n    schedule:\n      interval: 'weekly'\n"
         )
-        self.assertEqual(result, expected_result)
-
-    def test_build_dependabot_file_with_maven(self):
-        """Test that the dependabot.yml file is built correctly with maven"""
-        repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename == "pom.xml"
-
-        expected_result = yaml.load(b"""
-version: 2
-updates:
-  - package-ecosystem: 'maven'
-    directory: '/'
-    schedule:
-      interval: 'weekly'
-""")
-        result = build_dependabot_file(
-            repo, False, [], {}, None, "weekly", "", [], None
-        )
-        self.assertEqual(result, expected_result)
-
-    def test_build_dependabot_file_with_gradle(self):
-        """Test that the dependabot.yml file is built correctly with gradle"""
-        repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename == "build.gradle"
-
-        expected_result = yaml.load(b"""
-version: 2
-updates:
-  - package-ecosystem: 'gradle'
-    directory: '/'
-    schedule:
-      interval: 'weekly'
-""")
-        result = build_dependabot_file(
-            repo, False, [], {}, None, "weekly", "", [], None
-        )
-        self.assertEqual(result, expected_result)
+        ecosystems = [
+            ("bazel", "MODULE.bazel"),
+            ("bazel", "WORKSPACE"),
+            ("bazel", "WORKSPACE.bazel"),
+            ("bun", "bun.lock"),
+            ("conda", "environment.yml"),
+            ("conda", "environment.yaml"),
+            ("docker", "Dockerfile"),
+            ("docker-compose", "docker-compose.yml"),
+            ("docker-compose", "docker-compose.yaml"),
+            ("docker-compose", "compose.yaml"),
+            ("docker-compose", "compose.yml"),
+            ("docker-compose", "docker-compose.override.yml"),
+            ("dotnet-sdk", "global.json"),
+            ("elm", "elm.json"),
+            ("gitsubmodule", ".gitmodules"),
+            ("gradle", "build.gradle"),
+            ("gradle", "build.gradle.kts"),
+            ("helm", "Chart.yaml"),
+            ("julia", "Project.toml"),
+            ("julia", "JuliaProject.toml"),
+            ("maven", "pom.xml"),
+            ("pre-commit", ".pre-commit-config.yaml"),
+            ("pre-commit", ".pre-commit-config.yml"),
+            ("pre-commit", ".pre-commit.yaml"),
+            ("pre-commit", ".pre-commit.yml"),
+            ("pub", "pubspec.yaml"),
+            ("rust-toolchain", "rust-toolchain.toml"),
+            ("rust-toolchain", "rust-toolchain"),
+            ("swift", "Package.swift"),
+            ("uv", "uv.lock"),
+            ("vcpkg", "vcpkg.json"),
+            ("vcpkg", "vcpkg-configuration.json"),
+        ]
+        for ecosystem, manifest_file in ecosystems:
+            with self.subTest(ecosystem=ecosystem, manifest_file=manifest_file):
+                repo = MagicMock()
+                repo.file_contents.side_effect = lambda f, mf=manifest_file: f == mf
+                expected = yaml.load(tmpl.format(ecosystem).encode())
+                result = build_dependabot_file(
+                    repo, False, [], {}, None, "weekly", "", [], None
+                )
+                self.assertEqual(result, expected)
 
     def test_build_dependabot_file_with_terraform_with_files(self):
         """Test that the dependabot.yml file is built correctly with Terraform"""
