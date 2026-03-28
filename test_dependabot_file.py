@@ -409,13 +409,14 @@ updates:
             ("vcpkg", "vcpkg-configuration.json"),
         ]
         for ecosystem, manifest_file in ecosystems:
-            repo = MagicMock()
-            repo.file_contents.side_effect = lambda f, mf=manifest_file: f == mf
-            expected = yaml.load(tmpl.format(ecosystem).encode())
-            result = build_dependabot_file(
-                repo, False, [], {}, None, "weekly", "", [], None
-            )
-            self.assertEqual(result, expected)
+            with self.subTest(ecosystem=ecosystem, manifest_file=manifest_file):
+                repo = MagicMock()
+                repo.file_contents.side_effect = lambda f, mf=manifest_file: f == mf
+                expected = yaml.load(tmpl.format(ecosystem).encode())
+                result = build_dependabot_file(
+                    repo, False, [], {}, None, "weekly", "", [], None
+                )
+                self.assertEqual(result, expected)
 
     def test_build_dependabot_file_with_terraform_with_files(self):
         """Test that the dependabot.yml file is built correctly with Terraform"""
