@@ -131,6 +131,29 @@ updates:
         )
         self.assertEqual(result, expected_result)
 
+    def test_build_dependabot_file_with_duplicate_key_in_existing_config(self):
+        """Test that a duplicate key in existing dependabot config returns None instead of crashing"""
+        repo = MagicMock()
+        repo.file_contents.side_effect = lambda f, filename="Gemfile": f == filename
+
+        existing_config = MagicMock()
+        existing_config.content = base64.b64encode(b"""
+version: 2
+updates:
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+""")
+
+        result = build_dependabot_file(
+            repo, False, [], {}, existing_config, "weekly", "", [], None
+        )
+        self.assertIsNone(result)
+
     def test_build_dependabot_file_with_weird_space_indent_existing_config_bundler_with_update(
         self,
     ):
@@ -152,10 +175,10 @@ directory: "/"
     prefix: "chore(deps)"
   """)
 
-        with self.assertRaises(ruamel.yaml.YAMLError):
-            build_dependabot_file(
-                repo, False, [], {}, existing_config, "weekly", "", [], None
-            )
+        result = build_dependabot_file(
+            repo, False, [], {}, existing_config, "weekly", "", [], None
+        )
+        self.assertIsNone(result)
 
     def test_build_dependabot_file_with_incorrect_indentation_in_extra_dependabot_config_file(
         self,
