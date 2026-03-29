@@ -252,7 +252,7 @@ def get_env_vars(
 
     ghe = os.getenv("GH_ENTERPRISE_URL", default="").strip()
 
-    ghe_api_url = os.getenv("GH_ENTERPRISE_API_URL", default="").strip()
+    ghe_api_url = os.getenv("GH_ENTERPRISE_API_URL", default="").strip().rstrip("/")
     if ghe_api_url and not ghe:
         raise ValueError(
             "GH_ENTERPRISE_API_URL requires GH_ENTERPRISE_URL to also be set"

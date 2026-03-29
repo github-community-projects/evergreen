@@ -119,6 +119,33 @@ class TestAuth(unittest.TestCase):
         mock.login_as_app_installation.assert_called_once_with(b"123", "123", 456)
         self.assertEqual(result, mock)
 
+    @patch("github3.github.GitHub")
+    def test_auth_to_github_with_app_enterprise_only_false_ignores_ghe_api_url(
+        self, mock_gh
+    ):
+        """
+        Test that ghe_api_url does not override session.base_url when
+        gh_app_enterprise_only is False, since the app authenticates against github.com.
+        The ghe_api_url still applies to direct REST/GraphQL calls via get_api_endpoint().
+        """
+        mock = mock_gh.return_value
+        mock.login_as_app_installation = MagicMock(return_value=True)
+        result = auth.auth_to_github(
+            "",
+            123,
+            456,
+            b"123",
+            "https://github.example.com",
+            False,
+            ghe_api_url="https://api.example.ghe.com",
+        )
+        mock.login_as_app_installation.assert_called_once_with(b"123", "123", 456)
+        self.assertEqual(result, mock)
+        # session.base_url should NOT be overridden — app authenticates against github.com
+        self.assertNotEqual(
+            getattr(mock.session, "base_url", None), "https://api.example.ghe.com"
+        )
+
     @patch("github3.apps.create_jwt_headers", MagicMock(return_value="gh_token"))
     @patch("requests.post")
     def test_get_github_app_installation_token(self, mock_post):

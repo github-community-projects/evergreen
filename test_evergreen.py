@@ -881,6 +881,50 @@ class TestCustomEnterpriseApiUrl(unittest.TestCase):
         self.assertEqual(result, "proj_123")
 
     @patch("requests.post")
+    def test_get_global_issue_id_with_ghe_api_url(self, mock_post):
+        """Test that the custom API URL is used for issue ID queries."""
+        mock_post.return_value.status_code = 200
+        mock_post.return_value.json.return_value = {
+            "data": {"repository": {"issue": {"id": "issue_123"}}}
+        }
+
+        result = get_global_issue_id(
+            "https://github.example.com",
+            "https://api.example.ghe.com",
+            "token",
+            "org",
+            "repo",
+            1,
+        )
+
+        call_url = mock_post.call_args[0][0]
+        self.assertEqual(call_url, "https://api.example.ghe.com/graphql")
+        self.assertEqual(result, "issue_123")
+
+    @patch("requests.post")
+    def test_get_global_pr_id_with_ghe_api_url(self, mock_post):
+        """Test that the custom API URL is used for PR ID queries."""
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "data": {"repository": {"pullRequest": {"id": "pr_123"}}}
+        }
+        mock_post.return_value = mock_response
+
+        result = get_global_pr_id(
+            "https://github.example.com",
+            "https://api.example.ghe.com",
+            "token",
+            "org",
+            "repo",
+            1,
+        )
+
+        call_url = mock_post.call_args[0][0]
+        self.assertEqual(call_url, "https://api.example.ghe.com/graphql")
+        self.assertEqual(result, "pr_123")
+
+    @patch("requests.post")
     def test_link_item_to_project_with_ghe_api_url(self, mock_post):
         """Test that the custom API URL is used for linking items to projects."""
         mock_response = MagicMock()

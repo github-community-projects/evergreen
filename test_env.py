@@ -1497,9 +1497,57 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_ghe_api_url(self):
         """Test that GH_ENTERPRISE_API_URL is correctly read when GH_ENTERPRISE_URL is also set"""
+        expected_result = (
+            "my_organization",
+            [],
+            "",  # search_query
+            None,
+            None,
+            b"",
+            False,
+            "my_token",
+            "https://github.example.com",
+            [],
+            "pull",
+            "Enable Dependabot",
+            "Dependabot could be enabled for this repository. "
+            "Please enable it by merging this pull request so that "
+            "we can keep our dependencies up to date and secure.",
+            "",
+            False,
+            "Create/Update dependabot.yaml",
+            None,
+            False,
+            ["internal", "private", "public"],
+            None,  # batch_size
+            True,  # enable_security_updates
+            [],  # exempt_ecosystems
+            False,  # update_existing
+            {},  # repo_specific_exemptions
+            "weekly",  # schedule
+            "",  # schedule_day
+            None,  # team_name
+            [],  # labels
+            None,
+            "https://api.example.ghe.com",  # ghe_api_url
+        )
         result = get_env_vars(True)
-        self.assertEqual(result[8], "https://github.example.com")  # ghe
-        self.assertEqual(result[-1], "https://api.example.ghe.com")  # ghe_api_url
+        self.assertEqual(result, expected_result)
+
+    @patch.dict(
+        os.environ,
+        {
+            "ORGANIZATION": "my_organization",
+            "GH_TOKEN": "my_token",
+            "GH_ENTERPRISE_URL": "https://github.example.com",
+            "GH_ENTERPRISE_API_URL": "  https://api.example.ghe.com/  ",
+        },
+        clear=True,
+    )
+    def test_get_env_vars_with_ghe_api_url_strips_whitespace_and_trailing_slash(self):
+        """Test that GH_ENTERPRISE_API_URL is stripped of whitespace and trailing slashes"""
+        result = get_env_vars(True)
+        self.assertEqual(result[-1], "https://api.example.ghe.com")
 
     @patch.dict(
         os.environ,
