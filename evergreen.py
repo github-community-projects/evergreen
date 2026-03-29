@@ -178,6 +178,10 @@ def main():  # pragma: no cover
             cooldown,
         )
 
+        if dependabot_file is None:
+            print("\tNo (new) compatible package manager found")
+            continue
+
         yaml = ruamel.yaml.YAML()
         stream = io.StringIO()
         yaml.indent(mapping=2, sequence=4, offset=2)
@@ -185,10 +189,6 @@ def main():  # pragma: no cover
         # create locally the dependabot file
         with open("dependabot-output.yaml", "w", encoding="utf-8") as yaml_file:
             yaml.dump(dependabot_file, yaml_file)
-
-        if dependabot_file is None:
-            print("\tNo (new) compatible package manager found")
-            continue
 
         dependabot_file = yaml.dump(dependabot_file, stream)
         dependabot_file = stream.getvalue()
