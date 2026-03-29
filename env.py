@@ -45,6 +45,23 @@ SUPPORTED_PACKAGE_ECOSYSTEMS = [
 ]
 
 
+def get_api_endpoint(ghe: str, ghe_api_url: str) -> str:
+    """Return the GitHub API endpoint URL.
+
+    Args:
+        ghe: The GitHub Enterprise URL (e.g., https://github.example.com)
+        ghe_api_url: Optional override for the full API endpoint URL
+
+    Returns:
+        The API endpoint URL to use for REST/GraphQL calls.
+    """
+    if ghe_api_url:
+        return ghe_api_url.rstrip("/")
+    if ghe:
+        return f"{ghe}/api/v3"
+    return "https://api.github.com"
+
+
 def get_bool_env_var(env_var_name: str, default: bool = False) -> bool:
     """Get a boolean environment variable.
 
@@ -147,6 +164,7 @@ def get_env_vars(
     str | None,
     list[str],
     str | None,
+    str,
 ]:
     """
     Get the environment variables for use in the action.
@@ -183,6 +201,7 @@ def get_env_vars(
         team_name (str): The team to search for repositories in
         labels (list[str]): A list of labels to be added to dependabot configuration
         dependabot_config_file (str): Dependabot extra configuration file location path
+        ghe_api_url (str): The full GitHub Enterprise API endpoint URL override
     """
 
     if not test:  # pragma: no cover
@@ -232,6 +251,12 @@ def get_env_vars(
         raise ValueError("GH_TOKEN environment variable not set")
 
     ghe = os.getenv("GH_ENTERPRISE_URL", default="").strip()
+
+    ghe_api_url = os.getenv("GH_ENTERPRISE_API_URL", default="").strip()
+    if ghe_api_url and not ghe:
+        raise ValueError(
+            "GH_ENTERPRISE_API_URL requires GH_ENTERPRISE_URL to also be set"
+        )
 
     exempt_repos = os.getenv("EXEMPT_REPOS")
     exempt_repositories_list = []
@@ -409,4 +434,5 @@ Please enable it by merging this pull request so that we can keep our dependenci
         team_name,
         labels_list,
         dependabot_config_file,
+        ghe_api_url,
     )

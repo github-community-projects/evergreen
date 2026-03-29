@@ -12,6 +12,7 @@ from env import (
     MAX_BODY_LENGTH,
     MAX_COMMIT_MESSAGE_LENGTH,
     MAX_TITLE_LENGTH,
+    get_api_endpoint,
     get_env_vars,
 )
 
@@ -30,6 +31,7 @@ class TestEnv(unittest.TestCase):
             "GH_APP_INSTALLATION_ID",
             "GH_APP_PRIVATE_KEY",
             "GITHUB_APP_ENTERPRISE_ONLY",
+            "GH_ENTERPRISE_API_URL",
             "GH_ENTERPRISE_URL",
             "GH_TOKEN",
             "GROUP_DEPENDENCIES",
@@ -96,6 +98,7 @@ class TestEnv(unittest.TestCase):
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -152,6 +155,7 @@ class TestEnv(unittest.TestCase):
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -207,6 +211,7 @@ class TestEnv(unittest.TestCase):
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -320,6 +325,7 @@ class TestEnv(unittest.TestCase):
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -378,6 +384,7 @@ class TestEnv(unittest.TestCase):
             "engineering",  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -453,6 +460,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -500,6 +508,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -561,6 +570,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -651,6 +661,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -698,6 +709,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -746,6 +758,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -794,6 +807,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -872,6 +886,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -921,6 +936,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -989,6 +1005,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -1037,6 +1054,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -1086,6 +1104,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -1224,6 +1243,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             [],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -1310,6 +1330,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             ["dependencies"],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -1357,6 +1378,7 @@ we can keep our dependencies up to date and secure.",
             None,  # team_name
             ["dependencies", "test", "test2"],  # labels
             None,
+            "",  # ghe_api_url
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -1462,6 +1484,69 @@ we can keep our dependencies up to date and secure.",
             str(the_exception),
             "No dependabot extra configuration found. Please create one in config.yaml",
         )
+
+    @patch.dict(
+        os.environ,
+        {
+            "ORGANIZATION": "my_organization",
+            "GH_TOKEN": "my_token",
+            "GH_ENTERPRISE_URL": "https://github.example.com",
+            "GH_ENTERPRISE_API_URL": "https://api.example.ghe.com",
+        },
+        clear=True,
+    )
+    def test_get_env_vars_with_ghe_api_url(self):
+        """Test that GH_ENTERPRISE_API_URL is correctly read when GH_ENTERPRISE_URL is also set"""
+        result = get_env_vars(True)
+        self.assertEqual(result[8], "https://github.example.com")  # ghe
+        self.assertEqual(result[-1], "https://api.example.ghe.com")  # ghe_api_url
+
+    @patch.dict(
+        os.environ,
+        {
+            "ORGANIZATION": "my_organization",
+            "GH_TOKEN": "my_token",
+            "GH_ENTERPRISE_API_URL": "https://api.example.ghe.com",
+        },
+        clear=True,
+    )
+    def test_get_env_vars_with_ghe_api_url_without_ghe_url(self):
+        """Test that GH_ENTERPRISE_API_URL without GH_ENTERPRISE_URL raises ValueError"""
+        with self.assertRaises(ValueError) as context_manager:
+            get_env_vars(True)
+        the_exception = context_manager.exception
+        self.assertEqual(
+            str(the_exception),
+            "GH_ENTERPRISE_API_URL requires GH_ENTERPRISE_URL to also be set",
+        )
+
+
+class TestGetApiEndpoint(unittest.TestCase):
+    """Test the get_api_endpoint helper function"""
+
+    def test_returns_ghe_api_url_when_set(self):
+        """Test that ghe_api_url takes precedence"""
+        result = get_api_endpoint(
+            "https://github.example.com", "https://api.example.ghe.com"
+        )
+        self.assertEqual(result, "https://api.example.ghe.com")
+
+    def test_strips_trailing_slash_from_ghe_api_url(self):
+        """Test that trailing slashes are stripped from ghe_api_url"""
+        result = get_api_endpoint(
+            "https://github.example.com", "https://api.example.ghe.com/"
+        )
+        self.assertEqual(result, "https://api.example.ghe.com")
+
+    def test_returns_ghe_with_api_v3_when_no_api_url(self):
+        """Test the traditional GHE endpoint construction"""
+        result = get_api_endpoint("https://github.example.com", "")
+        self.assertEqual(result, "https://github.example.com/api/v3")
+
+    def test_returns_github_com_when_no_ghe(self):
+        """Test the default github.com endpoint"""
+        result = get_api_endpoint("", "")
+        self.assertEqual(result, "https://api.github.com")
 
 
 if __name__ == "__main__":

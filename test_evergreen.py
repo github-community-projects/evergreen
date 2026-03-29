@@ -54,7 +54,7 @@ class TestDependabotSecurityUpdates(unittest.TestCase):
             mock_get.return_value.json.return_value = expected_response
 
             result = is_dependabot_security_updates_enabled(
-                ghe, owner, repo, access_token
+                ghe, "", owner, repo, access_token
             )
 
             mock_get.assert_called_once_with(
@@ -89,7 +89,7 @@ class TestDependabotSecurityUpdates(unittest.TestCase):
             mock_get.return_value.json.return_value = {"enabled": False}
 
             result = is_dependabot_security_updates_enabled(
-                ghe, owner, repo, access_token
+                ghe, "", owner, repo, access_token
             )
 
             mock_get.assert_called_once_with(
@@ -123,7 +123,7 @@ class TestDependabotSecurityUpdates(unittest.TestCase):
             mock_get.return_value.status_code = 404
 
             result = is_dependabot_security_updates_enabled(
-                ghe, owner, repo, access_token
+                ghe, "", owner, repo, access_token
             )
 
             mock_get.assert_called_once_with(
@@ -157,7 +157,7 @@ class TestDependabotSecurityUpdates(unittest.TestCase):
             mock_put.return_value.status_code = 204
 
             with patch("builtins.print") as mock_print:
-                enable_dependabot_security_updates(ghe, owner, repo, access_token)
+                enable_dependabot_security_updates(ghe, "", owner, repo, access_token)
 
                 mock_put.assert_called_once_with(
                     expected_url, headers=expected_headers, timeout=20
@@ -192,7 +192,7 @@ class TestDependabotSecurityUpdates(unittest.TestCase):
             mock_put.return_value.status_code = 500
 
             with patch("builtins.print") as mock_print:
-                enable_dependabot_security_updates(ghe, owner, repo, access_token)
+                enable_dependabot_security_updates(ghe, "", owner, repo, access_token)
 
                 mock_put.assert_called_once_with(
                     expected_url, headers=expected_headers, timeout=20
@@ -452,7 +452,7 @@ class TestGetGlobalProjectId(unittest.TestCase):
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = expected_response
 
-        result = get_global_project_id(ghe, token, organization, number)
+        result = get_global_project_id(ghe, "", token, organization, number)
 
         mock_post.assert_called_once_with(
             expected_url, headers=expected_headers, json=expected_data, timeout=20
@@ -476,7 +476,7 @@ class TestGetGlobalProjectId(unittest.TestCase):
         mock_post.side_effect = requests.exceptions.RequestException("Request failed")
 
         with patch("builtins.print") as mock_print:
-            result = get_global_project_id(ghe, token, organization, number)
+            result = get_global_project_id(ghe, "", token, organization, number)
 
             mock_post.assert_called_once_with(
                 expected_url, headers=expected_headers, json=expected_data, timeout=20
@@ -503,7 +503,7 @@ class TestGetGlobalProjectId(unittest.TestCase):
         mock_post.return_value.json.return_value = expected_response
 
         with patch("builtins.print") as mock_print:
-            result = get_global_project_id(ghe, token, organization, number)
+            result = get_global_project_id(ghe, "", token, organization, number)
 
             mock_post.assert_called_once_with(
                 expected_url, headers=expected_headers, json=expected_data, timeout=20
@@ -529,7 +529,9 @@ class TestGetGlobalIssueId(unittest.TestCase):
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = expected_response
 
-        result = get_global_issue_id(ghe, token, organization, repository, issue_number)
+        result = get_global_issue_id(
+            ghe, "", token, organization, repository, issue_number
+        )
 
         mock_post.assert_called_once()
         self.assertEqual(result, "1234567890")
@@ -545,7 +547,9 @@ class TestGetGlobalIssueId(unittest.TestCase):
 
         mock_post.side_effect = requests.exceptions.RequestException("Request failed")
 
-        result = get_global_issue_id(ghe, token, organization, repository, issue_number)
+        result = get_global_issue_id(
+            ghe, "", token, organization, repository, issue_number
+        )
 
         mock_post.assert_called_once()
         self.assertIsNone(result)
@@ -564,7 +568,9 @@ class TestGetGlobalIssueId(unittest.TestCase):
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = expected_response
 
-        result = get_global_issue_id(ghe, token, organization, repository, issue_number)
+        result = get_global_issue_id(
+            ghe, "", token, organization, repository, issue_number
+        )
 
         mock_post.assert_called_once()
         self.assertIsNone(result)
@@ -585,7 +591,7 @@ class TestGetGlobalPullRequestID(unittest.TestCase):
         mock_post.return_value = mock_response
 
         # Call the function with test data
-        result = get_global_pr_id("", "test_token", "test_org", "test_repo", 1)
+        result = get_global_pr_id("", "", "test_token", "test_org", "test_repo", 1)
 
         # Check that the result is as expected
         self.assertEqual(result, "test_id")
@@ -597,7 +603,7 @@ class TestGetGlobalPullRequestID(unittest.TestCase):
         mock_post.side_effect = requests.exceptions.RequestException
 
         # Call the function with test data
-        result = get_global_pr_id("", "test_token", "test_org", "test_repo", 1)
+        result = get_global_pr_id("", "", "test_token", "test_org", "test_repo", 1)
 
         # Check that the result is None
         self.assertIsNone(result)
@@ -612,7 +618,7 @@ class TestGetGlobalPullRequestID(unittest.TestCase):
         mock_post.return_value = mock_response
 
         # Call the function with test data
-        result = get_global_pr_id("", "test_token", "test_org", "test_repo", 1)
+        result = get_global_pr_id("", "", "test_token", "test_org", "test_repo", 1)
 
         # Check that the result is None
         self.assertIsNone(result)
@@ -639,7 +645,7 @@ class TestLinkItemToProject(unittest.TestCase):
         mock_response.status_code = 200
         mock_post.return_value = mock_response
 
-        result = link_item_to_project(ghe, token, project_id, item_id)
+        result = link_item_to_project(ghe, "", token, project_id, item_id)
 
         mock_post.assert_called_once_with(
             expected_url, headers=expected_headers, json=expected_data, timeout=20
@@ -666,7 +672,7 @@ class TestLinkItemToProject(unittest.TestCase):
         mock_post.side_effect = requests.exceptions.RequestException("Request failed")
 
         with patch("builtins.print") as mock_print:
-            result = link_item_to_project(ghe, token, project_id, item_id)
+            result = link_item_to_project(ghe, "", token, project_id, item_id)
 
             mock_post.assert_called_once_with(
                 expected_url, headers=expected_headers, json=expected_data, timeout=20
@@ -801,6 +807,97 @@ class TestAppendToGithubSummary(unittest.TestCase):
 
         mock_file.assert_called_once_with("summary.md", "a", encoding="utf-8")
         mock_file().write.assert_called_once_with(content + "\n")
+
+
+class TestCustomEnterpriseApiUrl(unittest.TestCase):
+    """Test that functions use the custom GH_ENTERPRISE_API_URL when provided."""
+
+    @patch("requests.get")
+    def test_is_dependabot_security_updates_enabled_with_ghe_api_url(self, mock_get):
+        """Test that the custom API URL is used instead of constructing from GHE URL."""
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {"enabled": True}
+
+        result = is_dependabot_security_updates_enabled(
+            "https://github.example.com",
+            "https://api.example.ghe.com",
+            "owner",
+            "repo",
+            "token",
+        )
+
+        mock_get.assert_called_once_with(
+            "https://api.example.ghe.com/repos/owner/repo/automated-security-fixes",
+            headers={
+                "Authorization": "Bearer token",
+                "Accept": "application/vnd.github.london-preview+json",
+            },
+            timeout=20,
+        )
+        self.assertTrue(result)
+
+    @patch("requests.put")
+    def test_enable_dependabot_security_updates_with_ghe_api_url(self, mock_put):
+        """Test that the custom API URL is used for enabling security updates."""
+        mock_put.return_value.status_code = 204
+
+        with patch("builtins.print"):
+            enable_dependabot_security_updates(
+                "https://github.example.com",
+                "https://api.example.ghe.com",
+                "owner",
+                "repo",
+                "token",
+            )
+
+        mock_put.assert_called_once_with(
+            "https://api.example.ghe.com/repos/owner/repo/automated-security-fixes",
+            headers={
+                "Authorization": "Bearer token",
+                "Accept": "application/vnd.github.london-preview+json",
+            },
+            timeout=20,
+        )
+
+    @patch("requests.post")
+    def test_get_global_project_id_with_ghe_api_url(self, mock_post):
+        """Test that the custom API URL is used for GraphQL queries."""
+        mock_post.return_value.status_code = 200
+        mock_post.return_value.json.return_value = {
+            "data": {"organization": {"projectV2": {"id": "proj_123"}}}
+        }
+
+        result = get_global_project_id(
+            "https://github.example.com",
+            "https://api.example.ghe.com",
+            "token",
+            "org",
+            1,
+        )
+
+        mock_post.assert_called_once()
+        call_url = mock_post.call_args[0][0]
+        self.assertEqual(call_url, "https://api.example.ghe.com/graphql")
+        self.assertEqual(result, "proj_123")
+
+    @patch("requests.post")
+    def test_link_item_to_project_with_ghe_api_url(self, mock_post):
+        """Test that the custom API URL is used for linking items to projects."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
+
+        result = link_item_to_project(
+            "https://github.example.com",
+            "https://api.example.ghe.com",
+            "token",
+            "proj_123",
+            "item_456",
+        )
+
+        call_url = mock_post.call_args[0][0]
+        self.assertEqual(call_url, "https://api.example.ghe.com/graphql")
+        self.assertIsNotNone(result)
 
 
 if __name__ == "__main__":

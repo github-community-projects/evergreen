@@ -49,6 +49,27 @@ class TestAuth(unittest.TestCase):
         self.assertEqual(result, "Authenticated to GitHub Enterprise")
 
     @patch("github3.github.GitHubEnterprise")
+    def test_auth_to_github_with_ghe_and_ghe_api_url(self, mock_ghe):
+        """
+        Test that session.base_url is overridden when ghe_api_url is provided with token auth.
+        """
+        mock_instance = MagicMock()
+        mock_instance.session = MagicMock()
+        mock_ghe.return_value = mock_instance
+        result = auth.auth_to_github(
+            "token",
+            "",
+            "",
+            b"",
+            "https://github.example.com",
+            False,
+            ghe_api_url="https://api.example.ghe.com",
+        )
+
+        self.assertEqual(result, mock_instance)
+        self.assertEqual(mock_instance.session.base_url, "https://api.example.ghe.com")
+
+    @patch("github3.github.GitHubEnterprise")
     def test_auth_to_github_with_ghe_and_ghe_app(self, mock_ghe):
         """
         Test the auth_to_github function when the GitHub Enterprise URL is provided and the app was created in GitHub Enterprise URL.
@@ -60,6 +81,30 @@ class TestAuth(unittest.TestCase):
         )
         mock.login_as_app_installation.assert_called_once_with(b"123", "123", 456)
         self.assertEqual(result, mock)
+
+    @patch("github3.github.GitHubEnterprise")
+    def test_auth_to_github_with_ghe_app_and_ghe_api_url(self, mock_ghe):
+        """
+        Test that session.base_url is overridden when ghe_api_url is provided with app auth.
+        """
+        mock_instance = MagicMock()
+        mock_instance.session = MagicMock()
+        mock_instance.login_as_app_installation = MagicMock(return_value=True)
+        mock_ghe.return_value = mock_instance
+        result = auth.auth_to_github(
+            "",
+            123,
+            456,
+            b"123",
+            "https://github.example.com",
+            True,
+            ghe_api_url="https://api.example.ghe.com",
+        )
+        mock_instance.login_as_app_installation.assert_called_once_with(
+            b"123", "123", 456
+        )
+        self.assertEqual(result, mock_instance)
+        self.assertEqual(mock_instance.session.base_url, "https://api.example.ghe.com")
 
     @patch("github3.github.GitHub")
     def test_auth_to_github_with_app(self, mock_gh):
@@ -137,6 +182,34 @@ class TestAuth(unittest.TestCase):
 
         # Assert that the result is None
         self.assertIsNone(result)
+
+    @patch("github3.apps.create_jwt_headers", MagicMock(return_value="gh_token"))
+    @patch("requests.post")
+    def test_get_github_app_installation_token_with_ghe_api_url(self, mock_post):
+        """
+        Test that get_github_app_installation_token uses the custom API URL when provided.
+        """
+        dummy_token = "dummytoken"
+        mock_response = MagicMock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {"token": dummy_token}
+        mock_post.return_value = mock_response
+
+        result = auth.get_github_app_installation_token(
+            ghe="https://github.example.com",
+            gh_app_id=12345,
+            gh_app_private_key_bytes=b"private_key",
+            gh_app_installation_id=678910,
+            ghe_api_url="https://api.example.ghe.com",
+        )
+
+        self.assertEqual(result, dummy_token)
+        mock_post.assert_called_once_with(
+            "https://api.example.ghe.com/app/installations/678910/access_tokens",
+            headers="gh_token",
+            json=None,
+            timeout=5,
+        )
 
     @patch("github3.login")
     def test_auth_to_github_invalid_credentials(self, mock_login):
