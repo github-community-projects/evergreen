@@ -48,6 +48,7 @@ def main():  # pragma: no cover
         team_name,
         labels,
         dependabot_config_file,
+        ghe_api_url,
     ) = env.get_env_vars()
 
     # Auth to GitHub.com or GHE
@@ -58,11 +59,12 @@ def main():  # pragma: no cover
         gh_app_private_key,
         ghe,
         gh_app_enterprise_only,
+        ghe_api_url,
     )
 
     if not token and gh_app_id and gh_app_installation_id and gh_app_private_key:
         token = auth.get_github_app_installation_token(
-            ghe, gh_app_id, gh_app_private_key, gh_app_installation_id
+            ghe, gh_app_id, gh_app_private_key, gh_app_installation_id, ghe_api_url
         )
 
     # Set the project_global_id to None by default
@@ -75,7 +77,9 @@ def main():  # pragma: no cover
             raise ValueError(
                 "ORGANIZATION environment variable was not set. Please set it"
             )
-        project_global_id = get_global_project_id(ghe, token, organization, project_id)
+        project_global_id = get_global_project_id(
+            ghe, ghe_api_url, token, organization, project_id
+        )
 
     # Get the repositories from the organization, team name, or list of repositories
     repos = get_repos_iterator(
@@ -222,9 +226,11 @@ def main():  # pragma: no cover
         # Get dependabot security updates enabled if possible
         if enable_security_updates:
             if not is_dependabot_security_updates_enabled(
-                ghe, repo.owner, repo.name, token
+                ghe, ghe_api_url, repo.owner, repo.name, token
             ):
-                enable_dependabot_security_updates(ghe, repo.owner, repo.name, token)
+                enable_dependabot_security_updates(
+                    ghe, ghe_api_url, repo.owner, repo.name, token
+                )
 
         if follow_up_type == "issue":
             skip = check_pending_issues_for_duplicates(title, repo)
@@ -236,9 +242,11 @@ def main():  # pragma: no cover
                 summary_content += f"| {repo.full_name} | {'✅' if enable_security_updates else '❌'} | {follow_up_type} | [Link]({issue.html_url}) |\n"
                 if project_global_id:
                     issue_id = get_global_issue_id(
-                        ghe, token, organization, repo.name, issue.number
+                        ghe, ghe_api_url, token, organization, repo.name, issue.number
                     )
-                    link_item_to_project(ghe, token, project_global_id, issue_id)
+                    link_item_to_project(
+                        ghe, ghe_api_url, token, project_global_id, issue_id
+                    )
                     print(f"\tLinked issue to project {project_global_id}")
         else:
             # Try to detect if the repo already has an open pull request for dependabot
@@ -267,10 +275,15 @@ def main():  # pragma: no cover
                     )
                     if project_global_id:
                         pr_id = get_global_pr_id(
-                            ghe, token, organization, repo.name, pull.number
+                            ghe,
+                            ghe_api_url,
+                            token,
+                            organization,
+                            repo.name,
+                            pull.number,
                         )
                         response = link_item_to_project(
-                            ghe, token, project_global_id, pr_id
+                            ghe, ghe_api_url, token, project_global_id, pr_id
                         )
                         if response:
                             print(
@@ -294,12 +307,12 @@ def is_repo_created_date_before(repo_created_at: str, created_after_date: str):
     )
 
 
-def is_dependabot_security_updates_enabled(ghe, owner, repo, access_token):
+def is_dependabot_security_updates_enabled(ghe, ghe_api_url, owner, repo, access_token):
     """
     Check if Dependabot security updates are enabled at the /repos/:owner/:repo/automated-security-fixes endpoint using the requests library
     API: https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#check-if-automated-security-fixes-are-enabled-for-a-repository
     """
-    api_endpoint = f"{ghe}/api/v3" if ghe else "https://api.github.com"
+    api_endpoint = env.get_api_endpoint(ghe, ghe_api_url)
     url = f"{api_endpoint}/repos/{owner}/{repo}/automated-security-fixes"
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -336,12 +349,12 @@ def check_existing_config(repo, filename):
     return None
 
 
-def enable_dependabot_security_updates(ghe, owner, repo, access_token):
+def enable_dependabot_security_updates(ghe, ghe_api_url, owner, repo, access_token):
     """
     Enable Dependabot security updates at the /repos/:owner/:repo/automated-security-fixes endpoint using the requests library
     API: https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#enable-automated-security-fixes
     """
-    api_endpoint = f"{ghe}/api/v3" if ghe else "https://api.github.com"
+    api_endpoint = env.get_api_endpoint(ghe, ghe_api_url)
     url = f"{api_endpoint}/repos/{owner}/{repo}/automated-security-fixes"
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -449,12 +462,12 @@ def commit_changes(
     return pull
 
 
-def get_global_project_id(ghe, token, organization, number):
+def get_global_project_id(ghe, ghe_api_url, token, organization, number):
     """
     Fetches the project ID from GitHub's GraphQL API.
     API: https://docs.github.com/en/graphql/guides/forming-calls-with-graphql
     """
-    api_endpoint = f"{ghe}/api/v3" if ghe else "https://api.github.com"
+    api_endpoint = env.get_api_endpoint(ghe, ghe_api_url)
     url = f"{api_endpoint}/graphql"
     headers = {"Authorization": f"Bearer {token}"}
     data = {
@@ -475,12 +488,14 @@ def get_global_project_id(ghe, token, organization, number):
         return None
 
 
-def get_global_issue_id(ghe, token, organization, repository, issue_number):
+def get_global_issue_id(
+    ghe, ghe_api_url, token, organization, repository, issue_number
+):
     """
     Fetches the issue ID from GitHub's GraphQL API
     API: https://docs.github.com/en/graphql/guides/forming-calls-with-graphql
     """
-    api_endpoint = f"{ghe}/api/v3" if ghe else "https://api.github.com"
+    api_endpoint = env.get_api_endpoint(ghe, ghe_api_url)
     url = f"{api_endpoint}/graphql"
     headers = {"Authorization": f"Bearer {token}"}
     data = {"query": f"""
@@ -507,12 +522,12 @@ def get_global_issue_id(ghe, token, organization, repository, issue_number):
         return None
 
 
-def get_global_pr_id(ghe, token, organization, repository, pr_number):
+def get_global_pr_id(ghe, ghe_api_url, token, organization, repository, pr_number):
     """
     Fetches the pull request ID from GitHub's GraphQL API
     API: https://docs.github.com/en/graphql/guides/forming-calls-with-graphql
     """
-    api_endpoint = f"{ghe}/api/v3" if ghe else "https://api.github.com"
+    api_endpoint = env.get_api_endpoint(ghe, ghe_api_url)
     url = f"{api_endpoint}/graphql"
     headers = {"Authorization": f"Bearer {token}"}
     data = {"query": f"""
@@ -539,12 +554,12 @@ def get_global_pr_id(ghe, token, organization, repository, pr_number):
         return None
 
 
-def link_item_to_project(ghe, token, project_global_id, item_id):
+def link_item_to_project(ghe, ghe_api_url, token, project_global_id, item_id):
     """
     Links an item (issue or pull request) to a project in GitHub.
     API: https://docs.github.com/en/graphql/guides/forming-calls-with-graphql
     """
-    api_endpoint = f"{ghe}/api/v3" if ghe else "https://api.github.com"
+    api_endpoint = env.get_api_endpoint(ghe, ghe_api_url)
     url = f"{api_endpoint}/graphql"
     headers = {"Authorization": f"Bearer {token}"}
     data = {

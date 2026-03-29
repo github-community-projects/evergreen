@@ -1,5 +1,6 @@
 """This is the module that contains functions related to authenticating to GitHub with a personal access token."""
 
+import env
 import github3
 import requests
 
@@ -11,6 +12,7 @@ def auth_to_github(
     gh_app_private_key_bytes: bytes,
     ghe: str,
     gh_app_enterprise_only: bool,
+    ghe_api_url: str = "",
 ) -> github3.GitHub:
     """
     Connect to GitHub.com or GitHub Enterprise, depending on env variables.
@@ -22,6 +24,7 @@ def auth_to_github(
         gh_app_private_key_bytes (bytes): the GitHub App Private Key
         ghe (str): the GitHub Enterprise URL
         gh_app_enterprise_only (bool): Set this to true if the GH APP is created on GHE and needs to communicate with GHE api only
+        ghe_api_url (str): the full GitHub Enterprise API endpoint URL override
 
     Returns:
         github3.GitHub: the GitHub connection object
@@ -29,6 +32,8 @@ def auth_to_github(
     if gh_app_id and gh_app_private_key_bytes and gh_app_installation_id:
         if ghe and gh_app_enterprise_only:
             gh = github3.github.GitHubEnterprise(url=ghe)
+            if ghe_api_url:
+                gh.session.base_url = ghe_api_url
         else:
             gh = github3.github.GitHub()
         gh.login_as_app_installation(
@@ -37,6 +42,8 @@ def auth_to_github(
         github_connection = gh
     elif ghe and token:
         github_connection = github3.github.GitHubEnterprise(url=ghe, token=token)
+        if ghe_api_url:
+            github_connection.session.base_url = ghe_api_url
     elif token:
         github_connection = github3.login(token=token)
     else:
@@ -54,6 +61,7 @@ def get_github_app_installation_token(
     gh_app_id: int | None,
     gh_app_private_key_bytes: bytes,
     gh_app_installation_id: int | None,
+    ghe_api_url: str = "",
 ) -> str | None:
     """
     Get a GitHub App Installation token.
@@ -64,6 +72,7 @@ def get_github_app_installation_token(
         gh_app_id (int | None): the GitHub App ID
         gh_app_private_key_bytes (bytes): the GitHub App Private Key
         gh_app_installation_id (int | None): the GitHub App Installation ID
+        ghe_api_url (str): the full GitHub Enterprise API endpoint URL override
 
     Returns:
         str: the GitHub App token
@@ -71,7 +80,7 @@ def get_github_app_installation_token(
     jwt_headers = github3.apps.create_jwt_headers(
         gh_app_private_key_bytes, str(gh_app_id)
     )
-    api_endpoint = f"{ghe}/api/v3" if ghe else "https://api.github.com"
+    api_endpoint = env.get_api_endpoint(ghe, ghe_api_url)
     url = f"{api_endpoint}/app/installations/{gh_app_installation_id}/access_tokens"
 
     try:
