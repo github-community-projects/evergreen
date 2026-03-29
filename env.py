@@ -68,12 +68,12 @@ class EvergreenConfig:  # pylint: disable=too-many-instance-attributes
     dry_run: bool
     commit_message: str
     project_id: str | None
-    group_dependencies: bool | None
+    group_dependencies: bool
     filter_visibility: list[str]
     batch_size: int | None
-    enable_security_updates: bool | None
+    enable_security_updates: bool
     exempt_ecosystems: list[str]
-    update_existing: bool | None
+    update_existing: bool
     repo_specific_exemptions: dict
     schedule: str
     schedule_day: str
