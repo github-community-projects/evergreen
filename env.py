@@ -58,7 +58,7 @@ def get_api_endpoint(ghe: str, ghe_api_url: str) -> str:
     if ghe_api_url:
         return ghe_api_url.rstrip("/")
     if ghe:
-        return f"{ghe}/api/v3"
+        return f"{ghe.rstrip('/')}/api/v3"
     return "https://api.github.com"
 
 

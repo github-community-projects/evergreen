@@ -1596,6 +1596,11 @@ class TestGetApiEndpoint(unittest.TestCase):
         result = get_api_endpoint("", "")
         self.assertEqual(result, "https://api.github.com")
 
+    def test_strips_trailing_slash_from_ghe(self):
+        """Test that trailing slashes on ghe don't produce double slashes"""
+        result = get_api_endpoint("https://github.example.com/", "")
+        self.assertEqual(result, "https://github.example.com/api/v3")
+
 
 if __name__ == "__main__":
     unittest.main()
