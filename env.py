@@ -4,6 +4,7 @@ Sets up the environment variables for the action.
 
 import os
 import re
+from dataclasses import dataclass
 from os.path import dirname, join
 
 from dotenv import load_dotenv
@@ -43,6 +44,42 @@ SUPPORTED_PACKAGE_ECOSYSTEMS = [
     "uv",
     "vcpkg",
 ]
+
+
+@dataclass(frozen=True)
+class EvergreenConfig:  # pylint: disable=too-many-instance-attributes
+    """Configuration for the Evergreen action, parsed from environment variables."""
+
+    organization: str | None
+    repository_list: list[str]
+    search_query: str | None
+    gh_app_id: int | None
+    gh_app_installation_id: int | None
+    gh_app_private_key_bytes: bytes
+    gh_app_enterprise_only: bool
+    token: str
+    ghe: str
+    ghe_api_url: str
+    exempt_repositories_list: list[str]
+    follow_up_type: str
+    title: str
+    body: str
+    created_after_date: str
+    dry_run: bool
+    commit_message: str
+    project_id: str | None
+    group_dependencies: bool | None
+    filter_visibility: list[str]
+    batch_size: int | None
+    enable_security_updates: bool | None
+    exempt_ecosystems: list[str]
+    update_existing: bool | None
+    repo_specific_exemptions: dict
+    schedule: str
+    schedule_day: str
+    team_name: str | None
+    labels: list[str]
+    dependabot_config_file: str | None
 
 
 def get_api_endpoint(ghe: str, ghe_api_url: str) -> str:
@@ -134,74 +171,15 @@ def parse_repo_specific_exemptions(repo_specific_exemptions_str: str) -> dict:
 
 def get_env_vars(
     test: bool = False,
-) -> tuple[
-    str | None,
-    list[str],
-    str | None,
-    int | None,
-    int | None,
-    bytes,
-    bool,
-    str,
-    str,
-    list[str],
-    str,
-    str,
-    str,
-    str,
-    bool,
-    str,
-    str | None,
-    bool | None,
-    list[str] | None,
-    int | None,
-    bool | None,
-    list[str],
-    bool | None,
-    dict,
-    str,
-    str,
-    str | None,
-    list[str],
-    str | None,
-    str,
-]:
+) -> EvergreenConfig:
     """
     Get the environment variables for use in the action.
 
     Args:
-        None
+        test: If True, skip loading from .env file.
 
     Returns:
-        organization (str): The organization to search for repositories in
-        repository_list (list[str]): A list of repositories to search for
-        search_query (str): A search query string to filter repositories by
-        gh_app_id (int | None): The GitHub App ID to use for authentication
-        gh_app_installation_id (int | None): The GitHub App Installation ID to use for authentication
-        gh_app_private_key_bytes (bytes): The GitHub App Private Key as bytes to use for authentication
-        gh_app_enterprise_only (bool): Set this to true if the GH APP is created on GHE and needs to communicate with GHE api only
-        token (str): The GitHub token to use for authentication
-        ghe (str): The GitHub Enterprise URL to use for authentication
-        exempt_repositories_list (list[str]): A list of repositories to exempt from the action
-        follow_up_type (str): The type of follow up to open (issue or pull)
-        title (str): The title of the follow up
-        body (str): The body of the follow up
-        created_after_date (str): The date to filter repositories by
-        dry_run (bool): Whether or not to actually open issues/pull requests
-        commit_message (str): The commit message of the follow up
-        group_dependencies (bool): Whether to group dependencies in the dependabot.yml file
-        filter_visibility (list[str]): Run the action only on repositories with the specified listed visibility
-        batch_size (int): The max number of repositories in scope
-        enable_security_updates (bool): Whether to enable security updates in target repositories
-        exempt_ecosystems_list (list[str]): A list of package ecosystems to exempt from the action
-        update_existing (bool): Whether to update existing dependabot configuration files
-        repo_specific_exemptions (dict): A dictionary of per repository ecosystem exemptions
-        schedule (str): The schedule to run the action on
-        schedule_day (str): The day of the week to run the action on if schedule is daily
-        team_name (str): The team to search for repositories in
-        labels (list[str]): A list of labels to be added to dependabot configuration
-        dependabot_config_file (str): Dependabot extra configuration file location path
-        ghe_api_url (str): The full GitHub Enterprise API endpoint URL override
+        EvergreenConfig: A frozen dataclass containing all configuration values.
     """
 
     if not test:  # pragma: no cover
@@ -404,35 +382,35 @@ Please enable it by merging this pull request so that we can keep our dependenci
             f"No dependabot extra configuration found. Please create one in {dependabot_config_file}"
         )
 
-    return (
-        organization,
-        repositories_list,
-        search_query,
-        gh_app_id,
-        gh_app_installation_id,
-        gh_app_private_key_bytes,
-        gh_app_enterprise_only,
-        token,
-        ghe,
-        exempt_repositories_list,
-        follow_up_type,
-        title,
-        body,
-        created_after_date,
-        dry_run_bool,
-        commit_message,
-        project_id,
-        group_dependencies_bool,
-        filter_visibility_list,
-        batch_size,
-        enable_security_updates_bool,
-        exempt_ecosystems_list,
-        update_existing,
-        repo_specific_exemptions,
-        schedule,
-        schedule_day,
-        team_name,
-        labels_list,
-        dependabot_config_file,
-        ghe_api_url,
+    return EvergreenConfig(
+        organization=organization,
+        repository_list=repositories_list,
+        search_query=search_query,
+        gh_app_id=gh_app_id,
+        gh_app_installation_id=gh_app_installation_id,
+        gh_app_private_key_bytes=gh_app_private_key_bytes,
+        gh_app_enterprise_only=gh_app_enterprise_only,
+        token=token,
+        ghe=ghe,
+        ghe_api_url=ghe_api_url,
+        exempt_repositories_list=exempt_repositories_list,
+        follow_up_type=follow_up_type,
+        title=title,
+        body=body,
+        created_after_date=created_after_date,
+        dry_run=dry_run_bool,
+        commit_message=commit_message,
+        project_id=project_id,
+        group_dependencies=group_dependencies_bool,
+        filter_visibility=filter_visibility_list,
+        batch_size=batch_size,
+        enable_security_updates=enable_security_updates_bool,
+        exempt_ecosystems=exempt_ecosystems_list,
+        update_existing=update_existing,
+        repo_specific_exemptions=repo_specific_exemptions,
+        schedule=schedule,
+        schedule_day=schedule_day,
+        team_name=team_name,
+        labels=labels_list,
+        dependabot_config_file=dependabot_config_file,
     )
