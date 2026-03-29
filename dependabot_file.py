@@ -251,7 +251,7 @@ def build_dependabot_file(
             dependabot_file = yaml.load(base64.b64decode(existing_config.content))
         except ruamel.yaml.YAMLError as e:
             print(f"YAML indentation error: {e}")
-            raise
+            return None
     else:
         dependabot_file = copy.deepcopy(data)
 
