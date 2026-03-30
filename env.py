@@ -52,7 +52,7 @@ class EvergreenConfig:  # pylint: disable=too-many-instance-attributes
 
     organization: str | None
     repository_list: list[str]
-    search_query: str | None
+    search_query: str
     gh_app_id: int | None
     gh_app_installation_id: int | None
     gh_app_private_key_bytes: bytes
@@ -74,7 +74,7 @@ class EvergreenConfig:  # pylint: disable=too-many-instance-attributes
     enable_security_updates: bool
     exempt_ecosystems: list[str]
     update_existing: bool
-    repo_specific_exemptions: dict
+    repo_specific_exemptions: dict[str, list[str]]
     schedule: str
     schedule_day: str
     team_name: str | None
