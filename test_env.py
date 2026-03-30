@@ -12,6 +12,7 @@ from env import (
     MAX_BODY_LENGTH,
     MAX_COMMIT_MESSAGE_LENGTH,
     MAX_TITLE_LENGTH,
+    EvergreenConfig,
     get_api_endpoint,
     get_env_vars,
 )
@@ -68,37 +69,37 @@ class TestEnv(unittest.TestCase):
     )
     def test_get_env_vars_with_org(self):
         """Test that all environment variables are set correctly using an organization"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            ["repo4", "repo5"],
-            "issue",
-            "Dependabot Alert custom title",
-            "Dependabot custom body",
-            "2020-01-01",
-            False,
-            "Create dependabot configuration",
-            "123",
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            True,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=["repo4", "repo5"],
+            follow_up_type="issue",
+            title="Dependabot Alert custom title",
+            body="Dependabot custom body",
+            created_after_date="2020-01-01",
+            dry_run=False,
+            commit_message="Create dependabot configuration",
+            project_id="123",
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=True,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -122,40 +123,40 @@ class TestEnv(unittest.TestCase):
     )
     def test_get_env_vars_with_org_and_repo_specific_exemptions(self):
         """Test that all environment variables are set correctly using an organization"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            ["repo4", "repo5"],
-            "issue",
-            "Dependabot Alert custom title",
-            "Dependabot custom body",
-            "2020-01-01",
-            False,
-            "Create dependabot configuration",
-            "123",
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            True,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=["repo4", "repo5"],
+            follow_up_type="issue",
+            title="Dependabot Alert custom title",
+            body="Dependabot custom body",
+            created_after_date="2020-01-01",
+            dry_run=False,
+            commit_message="Create dependabot configuration",
+            project_id="123",
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=True,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={
                 "repo1": ["gomod"],
                 "repo2": ["docker", "gomod"],
-            },  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+            },
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -179,39 +180,39 @@ class TestEnv(unittest.TestCase):
     )
     def test_get_env_vars_repo_specific_exemptions_trims_whitespace(self):
         """Test that REPO_SPECIFIC_EXEMPTIONS trims whitespace in ecosystems."""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            ["repo4", "repo5"],
-            "issue",
-            "Dependabot Alert custom title",
-            "Dependabot custom body",
-            "2020-01-01",
-            False,
-            "Create dependabot configuration",
-            "123",
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            True,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=["repo4", "repo5"],
+            follow_up_type="issue",
+            title="Dependabot Alert custom title",
+            body="Dependabot custom body",
+            created_after_date="2020-01-01",
+            dry_run=False,
+            commit_message="Create dependabot configuration",
+            project_id="123",
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=True,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={
                 "repo1": ["gomod", "docker"],
-            },  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+            },
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -292,40 +293,40 @@ class TestEnv(unittest.TestCase):
     )
     def test_get_env_vars_with_repos(self):
         """Test that all environment variables are set correctly using a list of repositories"""
-        expected_result = (
-            None,
-            ["org/repo1", "org2/repo2"],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            ["repo4", "repo5"],
-            "pull",
-            "Dependabot Alert custom title",
-            "Dependabot custom body",
-            "2023-01-01",
-            True,
-            "Create dependabot configuration",
-            "123",
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            True,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {
+        expected_result = EvergreenConfig(
+            organization=None,
+            repository_list=["org/repo1", "org2/repo2"],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=["repo4", "repo5"],
+            follow_up_type="pull",
+            title="Dependabot Alert custom title",
+            body="Dependabot custom body",
+            created_after_date="2023-01-01",
+            dry_run=True,
+            commit_message="Create dependabot configuration",
+            project_id="123",
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=True,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={
                 "org1/repo1": ["docker"],
                 "org2/repo2": ["gomod"],
-            },  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+            },
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -351,40 +352,40 @@ class TestEnv(unittest.TestCase):
     )
     def test_get_env_vars_with_team(self):
         """Test that all environment variables are set correctly using a team"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            ["repo4", "repo5"],
-            "pull",
-            "Dependabot Alert custom title",
-            "Dependabot custom body",
-            "2023-01-01",
-            True,
-            "Create dependabot configuration",
-            "123",
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            True,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=["repo4", "repo5"],
+            follow_up_type="pull",
+            title="Dependabot Alert custom title",
+            body="Dependabot custom body",
+            created_after_date="2023-01-01",
+            dry_run=True,
+            commit_message="Create dependabot configuration",
+            project_id="123",
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=True,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={
                 "org1/repo1": ["docker"],
                 "org2/repo2": ["gomod"],
-            },  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            "engineering",  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+            },
+            schedule="weekly",
+            schedule_day="",
+            team_name="engineering",
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -428,39 +429,41 @@ class TestEnv(unittest.TestCase):
     )
     def test_get_env_vars_optional_values(self):
         """Test that optional values are set to their default values if not provided"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            True,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=True,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -476,39 +479,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_update_existing(self):
         """Test that optional values are set to their default values if not provided"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            True,  # enable_security_updates
-            [],  # exempt_ecosystems
-            True,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=True,
+            exempt_ecosystems=[],
+            update_existing=True,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -538,39 +543,41 @@ we can keep our dependencies up to date and secure.",
     def test_get_env_vars_auth_with_github_app_installation(self):
         """Test that an error is raised if at least one type of authentication
         required environment variables are not set"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            12345,
-            678910,
-            b"hello",
-            False,
-            "",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. Please enable it by merging "
-            "this pull request so that we can keep our dependencies up to date and "
-            "secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            True,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=12345,
+            gh_app_installation_id=678910,
+            gh_app_private_key_bytes=b"hello",
+            gh_app_enterprise_only=False,
+            token="",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=True,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -629,39 +636,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_repos_no_dry_run(self):
         """Test that all environment variables are set correctly when DRY_RUN is false"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            True,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=True,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -677,39 +686,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_repos_disabled_security_updates(self):
         """Test that all environment variables are set correctly when DRY_RUN is false"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            False,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=False,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -726,39 +737,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_repos_filter_visibility_multiple_values(self):
         """Test that filter_visibility is set correctly when multiple values are provided"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["internal", "private"],
-            None,  # batch_size
-            False,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["internal", "private"],
+            batch_size=None,
+            enable_security_updates=False,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -775,39 +788,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_repos_filter_visibility_single_value(self):
         """Test that filter_visibility is set correctly when a single value is provided"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["public"],
-            None,  # batch_size
-            False,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["public"],
+            batch_size=None,
+            enable_security_updates=False,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -854,39 +869,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_repos_filter_visibility_no_duplicates(self):
         """Test that filter_visibility is set correctly when there are duplicate values"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["private", "public"],
-            None,  # batch_size
-            False,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["private", "public"],
+            batch_size=None,
+            enable_security_updates=False,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -904,39 +921,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_repos_exempt_ecosystems(self):
         """Test that filter_visibility is set correctly when there are exempt ecosystems"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["private", "public"],
-            None,  # batch_size
-            False,  # enable_security_updates
-            ["gomod", "docker"],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["private", "public"],
+            batch_size=None,
+            enable_security_updates=False,
+            exempt_ecosystems=["gomod", "docker"],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -973,39 +992,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_exempt_ecosystems_trailing_comma(self):
         """Test that EXEMPT_ECOSYSTEMS tolerates trailing commas"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["private", "public"],
-            None,  # batch_size
-            False,  # enable_security_updates
-            ["gomod", "docker"],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["private", "public"],
+            batch_size=None,
+            enable_security_updates=False,
+            exempt_ecosystems=["gomod", "docker"],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -1022,39 +1043,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_no_batch_size(self):
         """Test that filter_visibility is set correctly when there is no batch size provided"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["private", "public"],
-            None,  # batch_size
-            False,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["private", "public"],
+            batch_size=None,
+            enable_security_updates=False,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -1072,39 +1095,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_batch_size(self):
         """Test that filter_visibility is set correctly when there is a batch size"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["private", "public"],
-            5,  # batch_size
-            False,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["private", "public"],
+            batch_size=5,
+            enable_security_updates=False,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -1211,39 +1236,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_valid_schedule_and_schedule_day(self):
         """Test valid schedule and schedule day choices"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            True,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "tuesday",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=True,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="tuesday",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -1298,39 +1325,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_a_valid_label(self):
         """Test valid single label"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            True,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            ["dependencies"],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=True,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=["dependencies"],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -1346,39 +1375,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_valid_labels_containing_spaces(self):
         """Test valid list of labels with spaces"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. \
-Please enable it by merging this pull request so that \
-we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            True,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            ["dependencies", "test", "test2"],  # labels
-            None,
-            "",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=True,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=["dependencies", "test", "test2"],
+            dependabot_config_file=None,
+            ghe_api_url="",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -1497,39 +1528,41 @@ we can keep our dependencies up to date and secure.",
     )
     def test_get_env_vars_with_ghe_api_url(self):
         """Test that GH_ENTERPRISE_API_URL is correctly read when GH_ENTERPRISE_URL is also set"""
-        expected_result = (
-            "my_organization",
-            [],
-            "",  # search_query
-            None,
-            None,
-            b"",
-            False,
-            "my_token",
-            "https://github.example.com",
-            [],
-            "pull",
-            "Enable Dependabot",
-            "Dependabot could be enabled for this repository. "
-            "Please enable it by merging this pull request so that "
-            "we can keep our dependencies up to date and secure.",
-            "",
-            False,
-            "Create/Update dependabot.yaml",
-            None,
-            False,
-            ["internal", "private", "public"],
-            None,  # batch_size
-            True,  # enable_security_updates
-            [],  # exempt_ecosystems
-            False,  # update_existing
-            {},  # repo_specific_exemptions
-            "weekly",  # schedule
-            "",  # schedule_day
-            None,  # team_name
-            [],  # labels
-            None,
-            "https://api.example.ghe.com",  # ghe_api_url
+        expected_result = EvergreenConfig(
+            organization="my_organization",
+            repository_list=[],
+            search_query="",
+            gh_app_id=None,
+            gh_app_installation_id=None,
+            gh_app_private_key_bytes=b"",
+            gh_app_enterprise_only=False,
+            token="my_token",
+            ghe="https://github.example.com",
+            exempt_repositories_list=[],
+            follow_up_type="pull",
+            title="Enable Dependabot",
+            body=(
+                "Dependabot could be enabled for this repository. "
+                "Please enable it by merging this pull request "
+                "so that we can keep our dependencies up to date and secure."
+            ),
+            created_after_date="",
+            dry_run=False,
+            commit_message="Create/Update dependabot.yaml",
+            project_id=None,
+            group_dependencies=False,
+            filter_visibility=["internal", "private", "public"],
+            batch_size=None,
+            enable_security_updates=True,
+            exempt_ecosystems=[],
+            update_existing=False,
+            repo_specific_exemptions={},
+            schedule="weekly",
+            schedule_day="",
+            team_name=None,
+            labels=[],
+            dependabot_config_file=None,
+            ghe_api_url="https://api.example.ghe.com",
         )
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
@@ -1547,7 +1580,7 @@ we can keep our dependencies up to date and secure.",
     def test_get_env_vars_with_ghe_api_url_strips_whitespace_and_trailing_slash(self):
         """Test that GH_ENTERPRISE_API_URL is stripped of whitespace and trailing slashes"""
         result = get_env_vars(True)
-        self.assertEqual(result[-1], "https://api.example.ghe.com")
+        self.assertEqual(result.ghe_api_url, "https://api.example.ghe.com")
 
     @patch.dict(
         os.environ,

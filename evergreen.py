@@ -18,88 +18,75 @@ def main():  # pragma: no cover
     """Run the main program"""
 
     # Get the environment variables
-    (
-        organization,
-        repository_list,
-        search_query,
-        gh_app_id,
-        gh_app_installation_id,
-        gh_app_private_key,
-        gh_app_enterprise_only,
-        token,
-        ghe,
-        exempt_repositories_list,
-        follow_up_type,
-        title,
-        body,
-        created_after_date,
-        dry_run,
-        commit_message,
-        project_id,
-        group_dependencies,
-        filter_visibility,
-        batch_size,
-        enable_security_updates,
-        exempt_ecosystems,
-        update_existing,
-        repo_specific_exemptions,
-        schedule,
-        schedule_day,
-        team_name,
-        labels,
-        dependabot_config_file,
-        ghe_api_url,
-    ) = env.get_env_vars()
+    config = env.get_env_vars()
 
     # Auth to GitHub.com or GHE
     github_connection = auth.auth_to_github(
-        token,
-        gh_app_id,
-        gh_app_installation_id,
-        gh_app_private_key,
-        ghe,
-        gh_app_enterprise_only,
-        ghe_api_url,
+        config.token,
+        config.gh_app_id,
+        config.gh_app_installation_id,
+        config.gh_app_private_key_bytes,
+        config.ghe,
+        config.gh_app_enterprise_only,
+        config.ghe_api_url,
     )
 
-    if not token and gh_app_id and gh_app_installation_id and gh_app_private_key:
+    token = config.token
+    if (
+        not token
+        and config.gh_app_id
+        and config.gh_app_installation_id
+        and config.gh_app_private_key_bytes
+    ):
         token = auth.get_github_app_installation_token(
-            ghe, gh_app_id, gh_app_private_key, gh_app_installation_id, ghe_api_url
+            config.ghe,
+            config.gh_app_id,
+            config.gh_app_private_key_bytes,
+            config.gh_app_installation_id,
+            config.ghe_api_url,
         )
 
     # Set the project_global_id to None by default
     project_global_id = None
 
     # If Project ID is set, lookup the global project ID
-    if project_id:
+    if config.project_id:
         # Check Organization is set as it is required for linking to a project
-        if not organization:
+        if not config.organization:
             raise ValueError(
                 "ORGANIZATION environment variable was not set. Please set it"
             )
         project_global_id = get_global_project_id(
-            ghe, ghe_api_url, token, organization, project_id
+            config.ghe,
+            config.ghe_api_url,
+            token,
+            config.organization,
+            config.project_id,
         )
 
     # Get the repositories from the organization, team name, or list of repositories
     repos = get_repos_iterator(
-        organization, team_name, repository_list, search_query, github_connection
+        config.organization,
+        config.team_name,
+        config.repository_list,
+        config.search_query,
+        github_connection,
     )
 
     # Setting up the action summary content
     summary_content = f"""
 ## 🚀 Job Summary
-- **Organization:** {organization}
-- **Follow Up Type:** {follow_up_type}
-- **Dry Run:** {dry_run}
-- **Enable Security Updates:** {enable_security_updates}\n
+- **Organization:** {config.organization}
+- **Follow Up Type:** {config.follow_up_type}
+- **Dry Run:** {config.dry_run}
+- **Enable Security Updates:** {config.enable_security_updates}\n
     """
     # Add optional parameters to the summary
-    if project_id:
-        project_link = f"https://github.com/orgs/{organization}/projects/{project_id}"
-        summary_content += f"- **Project ID:** [{project_id}]({project_link})\n"
-    if batch_size:
-        summary_content += f"- **Batch Size:** {batch_size}\n"
+    if config.project_id:
+        project_link = f"https://github.com/orgs/{config.organization}/projects/{config.project_id}"
+        summary_content += f"- **Project ID:** [{config.project_id}]({project_link})\n"
+    if config.batch_size:
+        summary_content += f"- **Batch Size:** {config.batch_size}\n"
 
     # Add the updated repositories table header
     summary_content += (
@@ -113,18 +100,18 @@ def main():  # pragma: no cover
     count_prs_created = 0
     for repo in repos:
         # if batch_size is defined, ensure we break if we exceed the number of eligible repos
-        if batch_size and count_eligible >= batch_size:
-            print(f"Batch size met at {batch_size} eligible repositories.")
+        if config.batch_size and count_eligible >= config.batch_size:
+            print(f"Batch size met at {config.batch_size} eligible repositories.")
             break
 
         # Check all the things to see if repo is eligible for a pr/issue
-        if repo.full_name in exempt_repositories_list:
+        if repo.full_name in config.exempt_repositories_list:
             print(f"Skipping {repo.full_name} (exempted)")
             continue
         if repo.archived:
             print(f"Skipping {repo.full_name} (archived)")
             continue
-        if repo.visibility.lower() not in filter_visibility:
+        if repo.visibility.lower() not in config.filter_visibility:
             print(f"Skipping {repo.full_name} (visibility-filtered)")
             continue
         existing_config = None
@@ -136,26 +123,26 @@ def main():  # pragma: no cover
                 dependabot_filename_to_use = filename
                 break
 
-        if existing_config and not update_existing:
+        if existing_config and not config.update_existing:
             print(
                 f"Skipping {repo.full_name} (dependabot file already exists and update_existing is False)"
             )
             continue
 
-        if created_after_date and is_repo_created_date_before(
-            repo.created_at, created_after_date
+        if config.created_after_date and is_repo_created_date_before(
+            repo.created_at, config.created_after_date
         ):
             print(f"Skipping {repo.full_name} (created after filter)")
             continue
 
         # Check if there is any extra configuration to be added to the dependabot file by checking the DEPENDABOT_CONFIG_FILE env variable
-        if dependabot_config_file:
+        if config.dependabot_config_file:
             yaml = ruamel.yaml.YAML()
             yaml.preserve_quotes = True
             # If running locally on a computer the local file takes precedence over the one existent on the repository
             try:
                 with open(
-                    dependabot_config_file, "r", encoding="utf-8"
+                    config.dependabot_config_file, "r", encoding="utf-8"
                 ) as extra_dependabot_config:
                     extra_dependabot_config = yaml.load(extra_dependabot_config)
             except ruamel.yaml.YAMLError as e:
@@ -180,13 +167,13 @@ def main():  # pragma: no cover
         # Try to detect package managers and build a dependabot file
         dependabot_file = build_dependabot_file(
             repo,
-            group_dependencies,
-            exempt_ecosystems,
-            repo_specific_exemptions,
+            config.group_dependencies,
+            config.exempt_ecosystems,
+            config.repo_specific_exemptions,
             existing_config,
-            schedule,
-            schedule_day,
-            labels,
+            config.schedule,
+            config.schedule_day,
+            config.labels,
             extra_dependabot_config,
             cooldown,
         )
@@ -207,16 +194,16 @@ def main():  # pragma: no cover
         dependabot_file = stream.getvalue()
 
         # If dry_run is set, just print the dependabot file
-        if dry_run:
-            if follow_up_type == "issue":
-                skip = check_pending_issues_for_duplicates(title, repo)
+        if config.dry_run:
+            if config.follow_up_type == "issue":
+                skip = check_pending_issues_for_duplicates(config.title, repo)
                 if not skip:
                     print("\tEligible for configuring dependabot.")
                     count_eligible += 1
                     print(f"\tConfiguration:\n {dependabot_file}")
-            if follow_up_type == "pull":
+            if config.follow_up_type == "pull":
                 # Try to detect if the repo already has an open pull request for dependabot
-                skip = check_pending_pulls_for_duplicates(title, repo)
+                skip = check_pending_pulls_for_duplicates(config.title, repo)
                 if not skip:
                     print("\tEligible for configuring dependabot.")
                     count_eligible += 1
@@ -224,44 +211,54 @@ def main():  # pragma: no cover
             continue
 
         # Get dependabot security updates enabled if possible
-        if enable_security_updates:
+        if config.enable_security_updates:
             if not is_dependabot_security_updates_enabled(
-                ghe, ghe_api_url, repo.owner, repo.name, token
+                config.ghe, config.ghe_api_url, repo.owner, repo.name, token
             ):
                 enable_dependabot_security_updates(
-                    ghe, ghe_api_url, repo.owner, repo.name, token
+                    config.ghe, config.ghe_api_url, repo.owner, repo.name, token
                 )
 
-        if follow_up_type == "issue":
-            skip = check_pending_issues_for_duplicates(title, repo)
+        if config.follow_up_type == "issue":
+            skip = check_pending_issues_for_duplicates(config.title, repo)
             if not skip:
                 count_eligible += 1
-                body_issue = f"{body}\n\n```yaml\n# {dependabot_filename_to_use} \n{dependabot_file}\n```"
-                issue = repo.create_issue(title, body_issue)
+                body_issue = f"{config.body}\n\n```yaml\n# {dependabot_filename_to_use} \n{dependabot_file}\n```"
+                issue = repo.create_issue(config.title, body_issue)
                 print(f"\tCreated issue {issue.html_url}")
-                summary_content += f"| {repo.full_name} | {'✅' if enable_security_updates else '❌'} | {follow_up_type} | [Link]({issue.html_url}) |\n"
+                security_icon = "✅" if config.enable_security_updates else "❌"
+                summary_content += f"| {repo.full_name} | {security_icon} | {config.follow_up_type} | [Link]({issue.html_url}) |\n"
                 if project_global_id:
                     issue_id = get_global_issue_id(
-                        ghe, ghe_api_url, token, organization, repo.name, issue.number
+                        config.ghe,
+                        config.ghe_api_url,
+                        token,
+                        config.organization,
+                        repo.name,
+                        issue.number,
                     )
                     link_item_to_project(
-                        ghe, ghe_api_url, token, project_global_id, issue_id
+                        config.ghe,
+                        config.ghe_api_url,
+                        token,
+                        project_global_id,
+                        issue_id,
                     )
                     print(f"\tLinked issue to project {project_global_id}")
         else:
             # Try to detect if the repo already has an open pull request for dependabot
-            skip = check_pending_pulls_for_duplicates(title, repo)
+            skip = check_pending_pulls_for_duplicates(config.title, repo)
 
             # Create a dependabot.yaml file, a branch, and a PR
             if not skip:
                 count_eligible += 1
                 try:
                     pull = commit_changes(
-                        title,
-                        body,
+                        config.title,
+                        config.body,
                         repo,
                         dependabot_file,
-                        commit_message,
+                        config.commit_message,
                         dependabot_filename_to_use,
                         existing_config,
                     )
@@ -269,21 +266,25 @@ def main():  # pragma: no cover
                     count_prs_created += 1
                     summary_content += (
                         f"| {repo.full_name} | "
-                        f"{'✅' if enable_security_updates else '❌'} | "
-                        f"{follow_up_type} | "
+                        f"{'✅' if config.enable_security_updates else '❌'} | "
+                        f"{config.follow_up_type} | "
                         f"[Link]({pull.html_url}) |\n"
                     )
                     if project_global_id:
                         pr_id = get_global_pr_id(
-                            ghe,
-                            ghe_api_url,
+                            config.ghe,
+                            config.ghe_api_url,
                             token,
-                            organization,
+                            config.organization,
                             repo.name,
                             pull.number,
                         )
                         response = link_item_to_project(
-                            ghe, ghe_api_url, token, project_global_id, pr_id
+                            config.ghe,
+                            config.ghe_api_url,
+                            token,
+                            project_global_id,
+                            pr_id,
                         )
                         if response:
                             print(
