@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "github3-py==4.0.1",
     "python-dotenv==1.2.2",
-    "requests==2.33.0",
+    "requests==2.33.1",
     "ruamel-yaml==0.19.1",
 ]
 
