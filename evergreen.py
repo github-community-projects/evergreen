@@ -179,7 +179,7 @@ def main():  # pragma: no cover
         )
 
         if dependabot_file is None:
-            print("\tNo (new) compatible package manager found")
+            print("\tSkipping repository")
             continue
 
         yaml = ruamel.yaml.YAML()
