@@ -1,10 +1,10 @@
-"""Test the get_bool_env_var function"""
+"""Test the get_bool_env_var and get_int_env_var functions"""
 
 import os
 import unittest
 from unittest.mock import patch
 
-from env import get_bool_env_var
+from env import get_bool_env_var, get_int_env_var
 
 
 class TestEnv(unittest.TestCase):
@@ -75,6 +75,22 @@ class TestEnv(unittest.TestCase):
         """
         result = get_bool_env_var("DOES_NOT_EXIST", False)
         self.assertFalse(result)
+
+
+class TestGetIntEnvVar(unittest.TestCase):
+    """Test the get_int_env_var function"""
+
+    @patch.dict(
+        os.environ,
+        {
+            "TEST_INT": "not_a_number",
+        },
+        clear=True,
+    )
+    def test_get_int_env_var_with_non_integer_value(self):
+        """Test that get_int_env_var returns None for non-integer values"""
+        result = get_int_env_var("TEST_INT")
+        self.assertIsNone(result)
 
 
 if __name__ == "__main__":

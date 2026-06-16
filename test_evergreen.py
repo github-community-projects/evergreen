@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """Test the evergreen.py module."""
 
 import unittest
@@ -253,6 +254,50 @@ class TestCommitChanges(unittest.TestCase):
         # Assert that the function returned the expected result
         self.assertEqual(result, "MockPullRequest")
 
+    @patch("uuid.uuid4")
+    def test_commit_changes_with_existing_config(self, mock_uuid):
+        """Test the commit_changes function when updating an existing config."""
+        mock_uuid.return_value = uuid.UUID("12345678123456781234567812345678")
+        mock_repo = MagicMock()
+        mock_repo.default_branch = "main"
+        mock_repo.ref.return_value.object.sha = "abc123"
+        mock_repo.create_ref.return_value = True
+        mock_repo.create_pull.return_value = "MockPullRequest"
+        dependabot_file_name = ".github/dependabot.yml"
+
+        title = "Test Title"
+        body = "Test Body"
+        dependabot_file = 'dependencies:\n  - package_manager: "python"\n    directory: "/"\n    update_schedule: "live"'
+        branch_name = "dependabot-12345678-1234-5678-1234-567812345678"
+        commit_message = "Update " + dependabot_file_name
+        existing_config = b"existing content"
+
+        result = commit_changes(
+            title,
+            body,
+            mock_repo,
+            dependabot_file,
+            commit_message,
+            dependabot_file_name,
+            existing_config,
+        )
+
+        # Assert that file_contents().update was called instead of create_file
+        mock_repo.file_contents.assert_called_once_with(dependabot_file_name)
+        mock_repo.file_contents.return_value.update.assert_called_once_with(
+            message=commit_message,
+            content=dependabot_file.encode(),
+            branch=branch_name,
+        )
+        mock_repo.create_file.assert_not_called()
+        mock_repo.create_pull.assert_called_once_with(
+            title=title,
+            body=body,
+            head=branch_name,
+            base="main",
+        )
+        self.assertEqual(result, "MockPullRequest")
+
 
 class TestCheckPendingPullsForDuplicates(unittest.TestCase):
     """Test the check_pending_pulls_for_duplicates function."""
@@ -402,6 +447,30 @@ class TestGetReposIterator(unittest.TestCase):
 
         # Assert that the function returned the expected result
         self.assertEqual(result, mock_team_repositories)
+
+    @patch("github3.login")
+    def test_get_repos_iterator_with_team_no_repos(self, mock_github):
+        """Test the get_repos_iterator function with a team that has no repositories"""
+        organization = "my_organization"
+        repository_list = []
+        team_name = "empty_team"
+        search_query = ""
+        github_connection = mock_github.return_value
+
+        github_connection.organization.return_value.team_by_name.return_value.repos_count = (
+            0
+        )
+
+        with self.assertRaises(SystemExit) as context:
+            get_repos_iterator(
+                organization,
+                team_name,
+                repository_list,
+                search_query,
+                github_connection,
+            )
+
+        self.assertEqual(context.exception.code, 1)
 
     @patch("github3.login")
     def test_get_repos_iterator_with_search_query(self, mock_github):
