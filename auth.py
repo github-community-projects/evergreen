@@ -68,7 +68,7 @@ def get_github_app_installation_token(
         ghe_api_url (str): the full GitHub Enterprise API endpoint URL override
 
     Returns:
-        str: the GitHub App token
+        str | None: the GitHub App token, or None if IDs are missing or the request fails
     """
     if not gh_app_id or not gh_app_installation_id:
         return None
