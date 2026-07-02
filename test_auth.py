@@ -304,6 +304,30 @@ class TestAuth(unittest.TestCase):
             base_url="https://api.example.ghe.com",
         )
 
+    def test_get_github_app_installation_token_missing_app_id(self):
+        """
+        Test that get_github_app_installation_token returns None when gh_app_id is None.
+        """
+        result = auth.get_github_app_installation_token(
+            ghe="",
+            gh_app_id=None,
+            gh_app_private_key_bytes=b"private_key",
+            gh_app_installation_id=678910,
+        )
+        self.assertIsNone(result)
+
+    def test_get_github_app_installation_token_missing_installation_id(self):
+        """
+        Test that get_github_app_installation_token returns None when gh_app_installation_id is None.
+        """
+        result = auth.get_github_app_installation_token(
+            ghe="",
+            gh_app_id=12345,
+            gh_app_private_key_bytes=b"private_key",
+            gh_app_installation_id=None,
+        )
+        self.assertIsNone(result)
+
 
 if __name__ == "__main__":
     unittest.main()
