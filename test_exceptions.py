@@ -3,57 +3,43 @@
 import unittest
 from unittest.mock import Mock
 
-import github3.exceptions
 from exceptions import OptionalFileNotFoundError, check_optional_file
+from github import UnknownObjectException
 
 
 class TestOptionalFileNotFoundError(unittest.TestCase):
     """Test the OptionalFileNotFoundError exception."""
 
-    def test_optional_file_not_found_error_inherits_from_not_found_error(self):
-        """Test that OptionalFileNotFoundError inherits from github3.exceptions.NotFoundError."""
-        mock_resp = Mock()
-        mock_resp.status_code = 404
-        error = OptionalFileNotFoundError(resp=mock_resp)
-        self.assertIsInstance(error, github3.exceptions.NotFoundError)
+    def test_optional_file_not_found_error_inherits_from_unknown_object_exception(self):
+        """Test that OptionalFileNotFoundError inherits from github.UnknownObjectException."""
+        error = OptionalFileNotFoundError(status=404, data="Not Found")
+        self.assertIsInstance(error, UnknownObjectException)
 
     def test_optional_file_not_found_error_creation(self):
         """Test OptionalFileNotFoundError can be created."""
-        mock_resp = Mock()
-        mock_resp.status_code = 404
-        error = OptionalFileNotFoundError(resp=mock_resp)
+        error = OptionalFileNotFoundError(status=404, data="Not Found")
         self.assertIsInstance(error, OptionalFileNotFoundError)
 
     def test_optional_file_not_found_error_with_response(self):
-        """Test OptionalFileNotFoundError with HTTP response."""
-        mock_resp = Mock()
-        mock_resp.status_code = 404
-        error = OptionalFileNotFoundError(resp=mock_resp)
-
-        # Should be created successfully
+        """Test OptionalFileNotFoundError with HTTP response data."""
+        error = OptionalFileNotFoundError(status=404, data="Not Found", headers={})
         self.assertIsInstance(error, OptionalFileNotFoundError)
 
-    def test_can_catch_as_github3_not_found_error(self):
-        """Test that OptionalFileNotFoundError can be caught as github3.exceptions.NotFoundError."""
-        mock_resp = Mock()
-        mock_resp.status_code = 404
-
+    def test_can_catch_as_unknown_object_exception(self):
+        """Test that OptionalFileNotFoundError can be caught as github.UnknownObjectException."""
         try:
-            raise OptionalFileNotFoundError(resp=mock_resp)
-        except github3.exceptions.NotFoundError as e:
+            raise OptionalFileNotFoundError(status=404, data="Not Found")
+        except UnknownObjectException as e:
             self.assertIsInstance(e, OptionalFileNotFoundError)
         except Exception:  # pylint: disable=broad-exception-caught
             self.fail(
-                "OptionalFileNotFoundError should be catchable as github3.exceptions.NotFoundError"
+                "OptionalFileNotFoundError should be catchable as UnknownObjectException"
             )
 
     def test_can_catch_specifically(self):
         """Test that OptionalFileNotFoundError can be caught specifically."""
-        mock_resp = Mock()
-        mock_resp.status_code = 404
-
         try:
-            raise OptionalFileNotFoundError(resp=mock_resp)
+            raise OptionalFileNotFoundError(status=404, data="Not Found")
         except OptionalFileNotFoundError as e:
             self.assertIsInstance(e, OptionalFileNotFoundError)
         except Exception:  # pylint: disable=broad-exception-caught
@@ -61,12 +47,11 @@ class TestOptionalFileNotFoundError(unittest.TestCase):
 
     def test_optional_file_not_found_error_properties(self):
         """Test OptionalFileNotFoundError has expected properties."""
-        mock_resp = Mock()
-        mock_resp.status_code = 404
-
-        error = OptionalFileNotFoundError(resp=mock_resp)
-        self.assertEqual(error.code, 404)
-        self.assertEqual(error.response, mock_resp)
+        error = OptionalFileNotFoundError(
+            status=404, data="Not Found", headers={"X-Test": "value"}
+        )
+        self.assertEqual(error.status, 404)
+        self.assertEqual(error.data, "Not Found")
 
 
 class TestCheckOptionalFile(unittest.TestCase):
@@ -77,59 +62,53 @@ class TestCheckOptionalFile(unittest.TestCase):
         mock_repo = Mock()
         mock_file_contents = Mock()
         mock_file_contents.size = 100
-        mock_repo.file_contents.return_value = mock_file_contents
+        mock_repo.get_contents.return_value = mock_file_contents
 
         result = check_optional_file(mock_repo, "config.yml")
 
         self.assertEqual(result, mock_file_contents)
-        mock_repo.file_contents.assert_called_once_with("config.yml")
+        mock_repo.get_contents.assert_called_once_with("config.yml")
 
     def test_check_optional_file_with_empty_file(self):
         """Test check_optional_file when file exists but is empty."""
         mock_repo = Mock()
         mock_file_contents = Mock()
         mock_file_contents.size = 0
-        mock_repo.file_contents.return_value = mock_file_contents
+        mock_repo.get_contents.return_value = mock_file_contents
 
         result = check_optional_file(mock_repo, "config.yml")
 
         self.assertIsNone(result)
-        mock_repo.file_contents.assert_called_once_with("config.yml")
+        mock_repo.get_contents.assert_called_once_with("config.yml")
 
     def test_check_optional_file_with_missing_file(self):
         """Test check_optional_file when file doesn't exist."""
         mock_repo = Mock()
-        mock_resp = Mock()
-        mock_resp.status_code = 404
 
-        original_error = github3.exceptions.NotFoundError(resp=mock_resp)
-        mock_repo.file_contents.side_effect = original_error
+        original_error = UnknownObjectException(status=404, data="Not Found")
+        mock_repo.get_contents.side_effect = original_error
 
         with self.assertRaises(OptionalFileNotFoundError) as context:
             check_optional_file(mock_repo, "missing.yml")
 
-        # Check that the original exception is chained
         self.assertEqual(context.exception.__cause__, original_error)
-        self.assertEqual(context.exception.response, mock_resp)
-        mock_repo.file_contents.assert_called_once_with("missing.yml")
+        mock_repo.get_contents.assert_called_once_with("missing.yml")
 
-    def test_check_optional_file_can_catch_as_not_found_error(self):
-        """Test that OptionalFileNotFoundError from check_optional_file can be caught as NotFoundError."""
+    def test_check_optional_file_can_catch_as_unknown_object_exception(self):
+        """Test that OptionalFileNotFoundError from check_optional_file can be caught as UnknownObjectException."""
         mock_repo = Mock()
-        mock_resp = Mock()
-        mock_resp.status_code = 404
 
-        mock_repo.file_contents.side_effect = github3.exceptions.NotFoundError(
-            resp=mock_resp
+        mock_repo.get_contents.side_effect = UnknownObjectException(
+            status=404, data="Not Found"
         )
 
         try:
             check_optional_file(mock_repo, "missing.yml")
-        except github3.exceptions.NotFoundError as e:
+        except UnknownObjectException as e:
             self.assertIsInstance(e, OptionalFileNotFoundError)
         except Exception:  # pylint: disable=broad-exception-caught
             self.fail(
-                "Should be able to catch OptionalFileNotFoundError as NotFoundError"
+                "Should be able to catch OptionalFileNotFoundError as UnknownObjectException"
             )
 
 

@@ -518,7 +518,7 @@ class TestEnv(unittest.TestCase):
         result = get_env_vars(True)
         self.assertEqual(result, expected_result)
 
-    @patch.dict(os.environ, {})
+    @patch.dict(os.environ, {}, clear=True)
     def test_get_env_vars_missing_org_or_repo(self):
         """Test that an error is raised if required environment variables are not set"""
         with self.assertRaises(ValueError) as cm:

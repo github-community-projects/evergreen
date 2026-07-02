@@ -7,11 +7,11 @@ from datetime import datetime
 
 import auth
 import env
-import github3
 import requests
 import ruamel.yaml
 from dependabot_file import build_dependabot_file, validate_cooldown_config
 from exceptions import OptionalFileNotFoundError, check_optional_file
+from github import UnknownObjectException
 
 
 def main():  # pragma: no cover
@@ -290,7 +290,7 @@ def main():  # pragma: no cover
                             print(
                                 f"\tLinked pull request to project {project_global_id}"
                             )
-                except github3.exceptions.NotFoundError:
+                except UnknownObjectException:
                     print("\tFailed to create pull request. Check write permissions.")
                     continue
 
@@ -332,11 +332,11 @@ def check_existing_config(repo, filename):
     repository and return the existing config if it does
 
     Args:
-        repo (github3.repos.repo.Repository): The repository to check
+        repo: The repository to check
         filename (str): The configuration filename to check
 
     Returns:
-        github3.repos.contents.Contents | None: The existing config if it exists, otherwise None
+        The existing config if it exists, otherwise None
     """
     existing_config = None
     try:
@@ -376,36 +376,33 @@ def get_repos_iterator(
     # Use GitHub search API if REPOSITORY_SEARCH_QUERY is set
     if search_query:
         # Return repositories matching the search query
-        repos = []
-        # Search results need to be converted to a list of repositories since they are returned as a search iterator
-        for repo in github_connection.search_repositories(search_query):
-            repos.append(repo.repository)
+        repos = list(github_connection.search_repositories(search_query))
         return repos
 
     repos = []
     # Default behavior: list all organization/team repositories or specific repository list
     if organization and not repository_list and not team_name:
-        repos = github_connection.organization(organization).repositories()
+        repos = github_connection.get_organization(organization).get_repos()
     elif team_name and organization:
         # Get the repositories from the team
-        team = github_connection.organization(organization).team_by_name(team_name)
+        team = github_connection.get_organization(organization).get_team_by_slug(
+            team_name
+        )
         if team.repos_count == 0:
             print(f"Team {team_name} has no repositories")
             sys.exit(1)
-        repos = team.repositories()
+        repos = team.get_repos()
     else:
         # Get the repositories from the repository_list
         for repo in repository_list:
-            repos.append(
-                github_connection.repository(repo.split("/")[0], repo.split("/")[1])
-            )
+            repos.append(github_connection.get_repo(repo))
 
     return repos
 
 
 def check_pending_pulls_for_duplicates(title, repo) -> bool:
     """Check if there are any open pull requests for dependabot and return the bool skip"""
-    pull_requests = repo.pull_requests(state="open")
+    pull_requests = repo.get_pulls(state="open")
     skip = False
     for pull_request in pull_requests:
         if pull_request.title.startswith(title):
@@ -417,7 +414,7 @@ def check_pending_pulls_for_duplicates(title, repo) -> bool:
 
 def check_pending_issues_for_duplicates(title, repo) -> bool:
     """Check if there are any open issues for dependabot and return the bool skip"""
-    issues = repo.issues(state="open")
+    issues = repo.get_issues(state="open")
     skip = False
     for issue in issues:
         if issue.title.startswith(title):
@@ -439,21 +436,22 @@ def commit_changes(
     """Commit the changes to the repo and open a pull request and return the pull request object"""
     default_branch = repo.default_branch
     # Get latest commit sha from default branch
-    default_branch_commit = repo.ref("heads/" + default_branch).object.sha
-    front_matter = "refs/heads/"
+    default_branch_commit = repo.get_git_ref("heads/" + default_branch).object.sha
     branch_name = "dependabot-" + str(uuid.uuid4())
-    repo.create_ref(front_matter + branch_name, default_branch_commit)
+    repo.create_git_ref(ref="refs/heads/" + branch_name, sha=default_branch_commit)
     if existing_config:
-        repo.file_contents(dependabot_filename).update(
+        repo.update_file(
+            path=dependabot_filename,
             message=message,
-            content=dependabot_file.encode(),  # Convert to bytes object
+            content=dependabot_file,
+            sha=existing_config.sha,
             branch=branch_name,
         )
     else:
         repo.create_file(
             path=dependabot_filename,
             message=message,
-            content=dependabot_file.encode(),  # Convert to bytes object
+            content=dependabot_file,
             branch=branch_name,
         )
 

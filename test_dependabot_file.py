@@ -1,4 +1,4 @@
-# pylint: disable=too-many-public-methods
+# pylint: disable=too-many-public-methods,too-many-lines
 """Tests for the dependabot_file.py functions."""
 
 import base64
@@ -6,9 +6,9 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
-import github3
 import ruamel.yaml
 from dependabot_file import add_existing_ecosystem_to_exempt_list, build_dependabot_file
+from github import UnknownObjectException
 
 yaml = ruamel.yaml.YAML()
 
@@ -21,9 +21,9 @@ class TestDependabotFile(unittest.TestCase):
     def test_not_found_error(self):
         """Test that the dependabot.yml file is built correctly with no package manager"""
         repo = MagicMock()
-        response = MagicMock()
-        response.status_code = 404
-        repo.file_contents.side_effect = github3.exceptions.NotFoundError(resp=response)
+        repo.get_contents.side_effect = UnknownObjectException(
+            status=404, data="Not Found"
+        )
 
         result = build_dependabot_file(repo, False, [], {}, None, "", "", [], None)
         self.assertIsNone(result)
@@ -34,7 +34,9 @@ class TestDependabotFile(unittest.TestCase):
         filename_list = ["Gemfile", "Gemfile.lock"]
 
         for filename in filename_list:
-            repo.file_contents.side_effect = lambda f, filename=filename: f == filename
+            repo.get_contents.side_effect = (
+                lambda f, filename=filename: f == filename or []
+            )
             expected_result = yaml.load(b"""
 version: 2
 updates:
@@ -55,7 +57,9 @@ updates:
         filename_list = ["Gemfile", "Gemfile.lock"]
 
         for filename in filename_list:
-            repo.file_contents.side_effect = lambda f, filename=filename: f == filename
+            repo.get_contents.side_effect = (
+                lambda f, filename=filename: f == filename or []
+            )
             expected_result = yaml.load(b"""
 version: 2
 updates:
@@ -72,7 +76,9 @@ updates:
     def test_build_dependabot_file_with_existing_config_bundler_no_update(self):
         """Test that the dependabot.yml file is built correctly with bundler"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda f, filename="Gemfile": f == filename
+        repo.get_contents.side_effect = (
+            lambda f, filename="Gemfile": f == filename or []
+        )
 
         # expected_result is None because the existing config already contains the all applicable ecosystems
         expected_result = None
@@ -97,7 +103,9 @@ updates:
     ):
         """Test that the dependabot.yml file is built correctly with bundler"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda f, filename="Gemfile": f == filename
+        repo.get_contents.side_effect = (
+            lambda f, filename="Gemfile": f == filename or []
+        )
 
         # expected_result maintains existing ecosystem with custom configuration
         # and adds new ecosystem
@@ -134,7 +142,9 @@ updates:
     def test_build_dependabot_file_with_duplicate_key_in_existing_config(self):
         """Test that a duplicate key in existing dependabot config returns None instead of crashing"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda f, filename="Gemfile": f == filename
+        repo.get_contents.side_effect = (
+            lambda f, filename="Gemfile": f == filename or []
+        )
 
         existing_config = MagicMock()
         existing_config.content = base64.b64encode(b"""
@@ -159,7 +169,9 @@ updates:
     ):
         """Test that the dependabot.yml file is built correctly with bundler"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda f, filename="Gemfile": f == filename
+        repo.get_contents.side_effect = (
+            lambda f, filename="Gemfile": f == filename or []
+        )
 
         # expected_result maintains existing ecosystem with custom configuration
         # and adds new ecosystem
@@ -202,8 +214,8 @@ type: 'npm'
         """Test that the dependabot.yaml file is built correctly with extra configurations from extra_dependabot_config"""
 
         repo = MagicMock()
-        repo.file_contents.side_effect = (
-            lambda f, filename="package.json": f == filename
+        repo.get_contents.side_effect = (
+            lambda f, filename="package.json": f == filename or []
         )
 
         # expected_result maintains existing ecosystem with custom configuration
@@ -244,7 +256,9 @@ updates:
         filename_list = ["package.json", "package-lock.json", "yarn.lock"]
 
         for filename in filename_list:
-            repo.file_contents.side_effect = lambda f, filename=filename: f == filename
+            repo.get_contents.side_effect = (
+                lambda f, filename=filename: f == filename or []
+            )
             expected_result = yaml.load(b"""
 version: 2
 updates:
@@ -270,7 +284,9 @@ updates:
         ]
 
         for filename in filename_list:
-            repo.file_contents.side_effect = lambda f, filename=filename: f == filename
+            repo.get_contents.side_effect = (
+                lambda f, filename=filename: f == filename or []
+            )
             expected_result = yaml.load(b"""
 version: 2
 updates:
@@ -293,7 +309,9 @@ updates:
         ]
 
         for filename in filename_list:
-            repo.file_contents.side_effect = lambda f, filename=filename: f == filename
+            repo.get_contents.side_effect = (
+                lambda f, filename=filename: f == filename or []
+            )
             expected_result = yaml.load(b"""
 version: 2
 updates:
@@ -310,7 +328,7 @@ updates:
     def test_build_dependabot_file_with_gomod(self):
         """Test that the dependabot.yml file is built correctly with Go module"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename == "go.mod"
+        repo.get_contents.side_effect = lambda filename: filename == "go.mod" or []
 
         expected_result = yaml.load(b"""
 version: 2
@@ -334,7 +352,9 @@ updates:
         ]
 
         for filename in filename_list:
-            repo.file_contents.side_effect = lambda f, filename=filename: f == filename
+            repo.get_contents.side_effect = (
+                lambda f, filename=filename: f == filename or []
+            )
             expected_result = yaml.load(b"""
 version: 2
 updates:
@@ -357,7 +377,9 @@ updates:
         ]
 
         for filename in filename_list:
-            repo.file_contents.side_effect = lambda f, filename=filename: f == filename
+            repo.get_contents.side_effect = (
+                lambda f, filename=filename: f == filename or []
+            )
             expected_result = yaml.load(b"""
 version: 2
 updates:
@@ -374,7 +396,9 @@ updates:
     def test_build_dependabot_file_with_nuget(self):
         """Test that the dependabot.yml file is built correctly with NuGet"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename.endswith(".csproj")
+        repo.get_contents.side_effect = (
+            lambda filename: filename.endswith(".csproj") or []
+        )
 
         expected_result = yaml.load(b"""
 version: 2
@@ -434,7 +458,9 @@ updates:
         for ecosystem, manifest_file in ecosystems:
             with self.subTest(ecosystem=ecosystem, manifest_file=manifest_file):
                 repo = MagicMock()
-                repo.file_contents.side_effect = lambda f, mf=manifest_file: f == mf
+                repo.get_contents.side_effect = (
+                    lambda f, mf=manifest_file: f == mf or []
+                )
                 expected = yaml.load(tmpl.format(ecosystem).encode())
                 result = build_dependabot_file(
                     repo, False, [], {}, None, "weekly", "", [], None
@@ -444,12 +470,9 @@ updates:
     def test_build_dependabot_file_with_terraform_with_files(self):
         """Test that the dependabot.yml file is built correctly with Terraform"""
         repo = MagicMock()
-        response = MagicMock()
-        response.status_code = 404
-        repo.file_contents.side_effect = github3.exceptions.NotFoundError(resp=response)
-        repo.directory_contents.side_effect = lambda path: (
-            [("main.tf", None)] if path == "/" else []
-        )
+        tf_file = MagicMock()
+        tf_file.name = "main.tf"
+        repo.get_contents.side_effect = lambda path: ([tf_file] if path == "/" else [])
 
         expected_result = yaml.load(b"""
 version: 2
@@ -467,22 +490,17 @@ updates:
     def test_build_dependabot_file_with_terraform_without_files(self):
         """Test that the dependabot.yml file is built correctly with Terraform"""
         repo = MagicMock()
-        response = MagicMock()
-        response.status_code = 404
-        repo.file_contents.side_effect = github3.exceptions.NotFoundError(resp=response)
 
         # Test absence of Terraform files
-        repo.directory_contents.side_effect = lambda path: [] if path == "/" else []
+        repo.get_contents.side_effect = lambda path: [] if path == "/" else []
         result = build_dependabot_file(
             repo, False, [], {}, None, "weekly", "", [], None
         )
         self.assertIsNone(result)
 
         # Test empty repository
-        response = MagicMock()
-        response.status_code = 404
-        repo.directory_contents.side_effect = github3.exceptions.NotFoundError(
-            resp=response
+        repo.get_contents.side_effect = UnknownObjectException(
+            status=404, data="Not Found"
         )
         result = build_dependabot_file(
             repo, False, [], {}, None, "weekly", "", [], None
@@ -492,11 +510,10 @@ updates:
     def test_build_dependabot_file_with_devcontainers(self):
         """Test that the dependabot.yml file is built correctly with devcontainers"""
         repo = MagicMock()
-        response = MagicMock()
-        response.status_code = 404
-        repo.file_contents.side_effect = github3.exceptions.NotFoundError(resp=response)
-        repo.directory_contents.side_effect = lambda path: (
-            [("devcontainer.json", None)] if path == ".devcontainer" else []
+        dc_file = MagicMock()
+        dc_file.name = "devcontainer.json"
+        repo.get_contents.side_effect = lambda path: (
+            [dc_file] if path == ".devcontainer" else []
         )
 
         expected_result = yaml.load(b"""
@@ -515,11 +532,10 @@ updates:
     def test_build_dependabot_file_with_github_actions(self):
         """Test that the dependabot.yml file is built correctly with GitHub Actions"""
         repo = MagicMock()
-        response = MagicMock()
-        response.status_code = 404
-        repo.file_contents.side_effect = github3.exceptions.NotFoundError(resp=response)
-        repo.directory_contents.side_effect = lambda path: (
-            [("test.yml", None)] if path == ".github/workflows" else []
+        yml_file = MagicMock()
+        yml_file.name = "test.yml"
+        repo.get_contents.side_effect = lambda path: (
+            [yml_file] if path == ".github/workflows" else []
         )
 
         expected_result = yaml.load(b"""
@@ -538,11 +554,8 @@ updates:
     def test_build_dependabot_file_with_github_actions_without_files(self):
         """Test that the dependabot.yml file is None when no YAML files are found in the .github/workflows/ directory."""
         repo = MagicMock()
-        response = MagicMock()
-        response.status_code = 404
-        repo.file_contents.side_effect = github3.exceptions.NotFoundError(resp=response)
-        repo.directory_contents.side_effect = github3.exceptions.NotFoundError(
-            resp=response
+        repo.get_contents.side_effect = UnknownObjectException(
+            status=404, data="Not Found"
         )
 
         result = build_dependabot_file(
@@ -553,7 +566,7 @@ updates:
     def test_build_dependabot_file_with_groups(self):
         """Test that the dependabot.yml file is built correctly with grouped dependencies"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+        repo.get_contents.side_effect = lambda filename: filename == "Dockerfile" or []
 
         expected_result = yaml.load(b"""
 version: 2
@@ -574,7 +587,7 @@ updates:
     def test_build_dependabot_file_with_exempt_ecosystems(self):
         """Test that the dependabot.yml file is built correctly with exempted ecosystems"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+        repo.get_contents.side_effect = lambda filename: filename == "Dockerfile" or []
 
         result = build_dependabot_file(
             repo, False, ["docker"], {}, None, "weekly", "", [], None
@@ -585,7 +598,7 @@ updates:
         """Test that the dependabot.yml file is built correctly with exempted ecosystems"""
         repo = MagicMock()
         repo.full_name = "test/test"
-        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+        repo.get_contents.side_effect = lambda filename: filename == "Dockerfile" or []
 
         result = build_dependabot_file(
             repo, False, [], {"test/test": ["docker"]}, None, "weekly", "", [], None
@@ -618,8 +631,8 @@ updates:
         """
         existing_config_repo = MagicMock()
 
-        existing_config_repo.file_contents.side_effect = (
-            lambda f, filename="Gemfile": f == filename
+        existing_config_repo.get_contents.side_effect = (
+            lambda f, filename="Gemfile": f == filename or []
         )
 
         existing_config = MagicMock()
@@ -649,8 +662,8 @@ updates:
         no_existing_config_repo = MagicMock()
         filename_list = ["package.json", "package-lock.json", "yarn.lock"]
         for filename in filename_list:
-            no_existing_config_repo.file_contents.side_effect = (
-                lambda f, filename=filename: f == filename
+            no_existing_config_repo.get_contents.side_effect = (
+                lambda f, filename=filename: f == filename or []
             )
             yaml.preserve_quotes = True
             expected_result = yaml.load(b"""
@@ -679,7 +692,9 @@ updates:
         Test the case where there is a single repo
         """
         mock_repo_1 = MagicMock()
-        mock_repo_1.file_contents.side_effect = lambda filename: filename == "go.mod"
+        mock_repo_1.get_contents.side_effect = (
+            lambda filename: filename == "go.mod" or []
+        )
 
         expected_result = yaml.load(b"""
 version: 2
@@ -698,8 +713,8 @@ updates:
         no_existing_config_repo = MagicMock()
         filename_list = ["package.json", "package-lock.json", "yarn.lock"]
         for filename in filename_list:
-            no_existing_config_repo.file_contents.side_effect = (
-                lambda f, filename=filename: f == filename
+            no_existing_config_repo.get_contents.side_effect = (
+                lambda f, filename=filename: f == filename or []
             )
             expected_result = yaml.load(b"""
 version: 2
@@ -728,7 +743,9 @@ updates:
         filename_list = ["Gemfile", "Gemfile.lock"]
 
         for filename in filename_list:
-            repo.file_contents.side_effect = lambda f, filename=filename: f == filename
+            repo.get_contents.side_effect = (
+                lambda f, filename=filename: f == filename or []
+            )
             expected_result = yaml.load(b"""
 version: 2
 updates:
@@ -750,7 +767,9 @@ updates:
         filename_list = ["Gemfile", "Gemfile.lock"]
 
         for filename in filename_list:
-            repo.file_contents.side_effect = lambda f, filename=filename: f == filename
+            repo.get_contents.side_effect = (
+                lambda f, filename=filename: f == filename or []
+            )
             expected_result = yaml.load(b"""
 version: 2
 updates:
@@ -779,7 +798,7 @@ updates:
     def test_build_dependabot_file_preserves_existing_registries(self):
         """Test that existing registries are preserved when adding new ecosystems"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename == "Gemfile"
+        repo.get_contents.side_effect = lambda filename: filename == "Gemfile" or []
 
         # Create existing config with registries but no bundler ecosystem
         existing_config = MagicMock()
@@ -825,7 +844,7 @@ updates:
     def test_build_dependabot_file_with_cooldown_default_days_only(self):
         """Test that cooldown with only default-days is added correctly"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+        repo.get_contents.side_effect = lambda filename: filename == "Dockerfile" or []
 
         cooldown = {"default-days": 3}
         expected_result = yaml.load(b"""
@@ -846,7 +865,7 @@ updates:
     def test_build_dependabot_file_with_cooldown_all_params(self):
         """Test that cooldown with all semver day parameters is added correctly"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+        repo.get_contents.side_effect = lambda filename: filename == "Dockerfile" or []
 
         cooldown = {
             "default-days": 3,
@@ -875,7 +894,7 @@ updates:
     def test_build_dependabot_file_with_cooldown_include_exclude(self):
         """Test that cooldown with include/exclude lists is added correctly"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+        repo.get_contents.side_effect = lambda filename: filename == "Dockerfile" or []
 
         cooldown = {
             "default-days": 5,
@@ -905,7 +924,7 @@ updates:
     def test_build_dependabot_file_with_cooldown_and_groups(self):
         """Test that cooldown works alongside grouped dependencies"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+        repo.get_contents.side_effect = lambda filename: filename == "Dockerfile" or []
 
         cooldown = {"default-days": 3}
         expected_result = yaml.load(b"""
@@ -931,7 +950,9 @@ updates:
     def test_build_dependabot_file_with_cooldown_and_registries(self):
         """Test that cooldown works alongside private registries"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename == "package.json"
+        repo.get_contents.side_effect = (
+            lambda filename: filename == "package.json" or []
+        )
 
         extra_config = yaml.load(b"""
 npm:
@@ -963,7 +984,7 @@ updates:
     def test_build_dependabot_file_without_cooldown(self):
         """Test that no cooldown section is added when cooldown is None"""
         repo = MagicMock()
-        repo.file_contents.side_effect = lambda filename: filename == "Dockerfile"
+        repo.get_contents.side_effect = lambda filename: filename == "Dockerfile" or []
 
         expected_result = yaml.load(b"""
 version: 2

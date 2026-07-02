@@ -1,18 +1,20 @@
 """Custom exceptions for the evergreen application."""
 
-import github3.exceptions
+from github import UnknownObjectException
 
 
-class OptionalFileNotFoundError(github3.exceptions.NotFoundError):
+class OptionalFileNotFoundError(UnknownObjectException):
     """Exception raised when an optional file is not found.
 
-    This exception inherits from github3.exceptions.NotFoundError but provides
+    This exception inherits from github.UnknownObjectException but provides
     a more explicit name for cases where missing files are expected and should
     not be treated as errors. This is typically used for optional configuration
     files or dependency files that may not exist in all repositories.
 
     Args:
-        resp: The HTTP response object from the failed request
+        status: The HTTP status code
+        data: The response data
+        headers: The response headers
     """
 
 
@@ -35,15 +37,13 @@ def check_optional_file(repo, filename):
         Other exceptions: For unexpected errors (permissions, network issues, etc.)
     """
     try:
-        file_contents = repo.file_contents(filename)
-        # Handle both real file contents objects and test mocks that return boolean
+        file_contents = repo.get_contents(filename)
         if hasattr(file_contents, "size"):
-            # Real file contents object
             if file_contents.size > 0:
                 return file_contents
             return None
-        # Test mock or other truthy value
         return file_contents if file_contents else None
-    except github3.exceptions.NotFoundError as e:
-        # Re-raise as our more specific exception type for better semantic clarity
-        raise OptionalFileNotFoundError(resp=e.response) from e
+    except UnknownObjectException as e:
+        raise OptionalFileNotFoundError(
+            status=e.status, data=e.data, headers=e.headers
+        ) from e
