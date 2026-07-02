@@ -5,7 +5,6 @@ import unittest
 import uuid
 from unittest.mock import MagicMock, patch
 
-import github3
 import requests
 from evergreen import (
     append_to_github_summary,
@@ -22,6 +21,7 @@ from evergreen import (
     is_repo_created_date_before,
     link_item_to_project,
 )
+from github import UnknownObjectException
 
 
 class TestDependabotSecurityUpdates(unittest.TestCase):
@@ -214,8 +214,10 @@ class TestCommitChanges(unittest.TestCase):
         )  # Mock UUID generation
         mock_repo = MagicMock()  # Mock repo object
         mock_repo.default_branch = "main"
-        mock_repo.ref.return_value.object.sha = "abc123"  # Mock SHA for latest commit
-        mock_repo.create_ref.return_value = True
+        mock_repo.get_git_ref.return_value.object.sha = (
+            "abc123"  # Mock SHA for latest commit
+        )
+        mock_repo.create_git_ref.return_value = True
         mock_repo.create_file.return_value = True
         mock_repo.create_pull.return_value = "MockPullRequest"
         dependabot_file_name = ".github/dependabot.yml"
@@ -235,13 +237,13 @@ class TestCommitChanges(unittest.TestCase):
         )
 
         # Assert that the methods were called with the correct arguments
-        mock_repo.create_ref.assert_called_once_with(
-            f"refs/heads/{branch_name}", "abc123"
+        mock_repo.create_git_ref.assert_called_once_with(
+            ref=f"refs/heads/{branch_name}", sha="abc123"
         )
         mock_repo.create_file.assert_called_once_with(
             path=dependabot_file_name,
             message=commit_message,
-            content=dependabot_file.encode(),
+            content=dependabot_file,
             branch=branch_name,
         )
         mock_repo.create_pull.assert_called_once_with(
@@ -260,8 +262,8 @@ class TestCommitChanges(unittest.TestCase):
         mock_uuid.return_value = uuid.UUID("12345678123456781234567812345678")
         mock_repo = MagicMock()
         mock_repo.default_branch = "main"
-        mock_repo.ref.return_value.object.sha = "abc123"
-        mock_repo.create_ref.return_value = True
+        mock_repo.get_git_ref.return_value.object.sha = "abc123"
+        mock_repo.create_git_ref.return_value = True
         mock_repo.create_pull.return_value = "MockPullRequest"
         dependabot_file_name = ".github/dependabot.yml"
 
@@ -270,7 +272,8 @@ class TestCommitChanges(unittest.TestCase):
         dependabot_file = 'dependencies:\n  - package_manager: "python"\n    directory: "/"\n    update_schedule: "live"'
         branch_name = "dependabot-12345678-1234-5678-1234-567812345678"
         commit_message = "Update " + dependabot_file_name
-        existing_config = b"existing content"
+        existing_config = MagicMock()
+        existing_config.sha = "existing_sha_123"
 
         result = commit_changes(
             title,
@@ -282,11 +285,12 @@ class TestCommitChanges(unittest.TestCase):
             existing_config,
         )
 
-        # Assert that file_contents().update was called instead of create_file
-        mock_repo.file_contents.assert_called_once_with(dependabot_file_name)
-        mock_repo.file_contents.return_value.update.assert_called_once_with(
+        # Assert that update_file was called instead of create_file
+        mock_repo.update_file.assert_called_once_with(
+            path=dependabot_file_name,
             message=commit_message,
-            content=dependabot_file.encode(),
+            content=dependabot_file,
+            sha="existing_sha_123",
             branch=branch_name,
         )
         mock_repo.create_file.assert_not_called()
@@ -307,7 +311,7 @@ class TestCheckPendingPullsForDuplicates(unittest.TestCase):
         mock_repo = MagicMock()  # Mock repo object
         mock_pull_request = MagicMock()
         mock_pull_request.title = "not-dependabot-branch"
-        mock_repo.pull_requests.return_value = [mock_pull_request]
+        mock_repo.get_pulls.return_value = [mock_pull_request]
 
         result = check_pending_pulls_for_duplicates("dependabot-branch", mock_repo)
 
@@ -319,7 +323,7 @@ class TestCheckPendingPullsForDuplicates(unittest.TestCase):
         mock_repo = MagicMock()  # Mock repo object
         mock_pull_request = MagicMock()
         mock_pull_request.title = "dependabot-branch"
-        mock_repo.pull_requests.return_value = [mock_pull_request]
+        mock_repo.get_pulls.return_value = [mock_pull_request]
 
         result = check_pending_pulls_for_duplicates(mock_pull_request.title, mock_repo)
 
@@ -334,11 +338,11 @@ class TestCheckPendingIssuesForDuplicates(unittest.TestCase):
         """Test the check_pending_Issues_for_duplicates function where there are no duplicates to be found."""
         mock_issue = MagicMock()
         mock_issue.title = "Other Issue"
-        mock_issue.issues.return_value = [mock_issue]
+        mock_issue.get_issues.return_value = [mock_issue]
 
         result = check_pending_issues_for_duplicates("Enable Dependabot", mock_issue)
 
-        mock_issue.issues.assert_called_once_with(state="open")
+        mock_issue.get_issues.assert_called_once_with(state="open")
 
         # Assert that the function returned the expected result
         self.assertFalse(result)
@@ -347,11 +351,11 @@ class TestCheckPendingIssuesForDuplicates(unittest.TestCase):
         """Test the check_pending_issues_for_duplicates function where there are duplicates to be found."""
         mock_issue = MagicMock()
         mock_issue.title = "Enable Dependabot"
-        mock_issue.issues.return_value = [mock_issue]
+        mock_issue.get_issues.return_value = [mock_issue]
 
         result = check_pending_issues_for_duplicates("Enable Dependabot", mock_issue)
 
-        mock_issue.issues.assert_called_once_with(state="open")
+        mock_issue.get_issues.assert_called_once_with(state="open")
 
         # Assert that the function returned the expected result
         self.assertTrue(result)
@@ -360,69 +364,66 @@ class TestCheckPendingIssuesForDuplicates(unittest.TestCase):
 class TestGetReposIterator(unittest.TestCase):
     """Test the get_repos_iterator function in evergreen.py"""
 
-    @patch("github3.login")
-    def test_get_repos_iterator_with_organization(self, mock_github):
+    def test_get_repos_iterator_with_organization(self):
         """Test the get_repos_iterator function with an organization"""
         organization = "my_organization"
         repository_list = []
         search_query = ""
-        github_connection = mock_github.return_value
+        github_connection = MagicMock()
 
         mock_organization = MagicMock()
         mock_repositories = MagicMock()
-        mock_organization.repositories.return_value = mock_repositories
-        github_connection.organization.return_value = mock_organization
+        mock_organization.get_repos.return_value = mock_repositories
+        github_connection.get_organization.return_value = mock_organization
 
         result = get_repos_iterator(
             organization, None, repository_list, search_query, github_connection
         )
 
-        # Assert that the organization method was called with the correct argument
-        github_connection.organization.assert_called_once_with(organization)
+        # Assert that the get_organization method was called with the correct argument
+        github_connection.get_organization.assert_called_once_with(organization)
 
-        # Assert that the repositories method was called on the organization object
-        mock_organization.repositories.assert_called_once()
+        # Assert that the get_repos method was called on the organization object
+        mock_organization.get_repos.assert_called_once()
 
         # Assert that the function returned the expected result
         self.assertEqual(result, mock_repositories)
 
-    @patch("github3.login")
-    def test_get_repos_iterator_with_repository_list(self, mock_github):
+    def test_get_repos_iterator_with_repository_list(self):
         """Test the get_repos_iterator function with a repository list"""
         organization = None
         repository_list = ["org/repo1", "org/repo2"]
         search_query = ""
-        github_connection = mock_github.return_value
+        github_connection = MagicMock()
 
         mock_repository = MagicMock()
         mock_repository_list = [mock_repository, mock_repository]
-        github_connection.repository.side_effect = mock_repository_list
+        github_connection.get_repo.side_effect = mock_repository_list
 
         result = get_repos_iterator(
             organization, None, repository_list, search_query, github_connection
         )
 
-        # Assert that the repository method was called with the correct arguments for each repository in the list
+        # Assert that the get_repo method was called with the correct arguments for each repository in the list
         expected_calls = [
-            unittest.mock.call("org", "repo1"),
-            unittest.mock.call("org", "repo2"),
+            unittest.mock.call("org/repo1"),
+            unittest.mock.call("org/repo2"),
         ]
-        github_connection.repository.assert_has_calls(expected_calls)
+        github_connection.get_repo.assert_has_calls(expected_calls)
 
         # Assert that the function returned the expected result
         self.assertEqual(result, mock_repository_list)
 
-    @patch("github3.login")
-    def test_get_repos_iterator_with_team(self, mock_github):
+    def test_get_repos_iterator_with_team(self):
         """Test the get_repos_iterator function with a team"""
         organization = "my_organization"
         repository_list = []
         team_name = "my_team"
         search_query = ""
-        github_connection = mock_github.return_value
+        github_connection = MagicMock()
 
         mock_team_repositories = MagicMock()
-        github_connection.organization.return_value.team_by_name.return_value.repositories.return_value = (
+        github_connection.get_organization.return_value.get_team_by_slug.return_value.get_repos.return_value = (
             mock_team_repositories
         )
 
@@ -434,30 +435,29 @@ class TestGetReposIterator(unittest.TestCase):
             github_connection,
         )
 
-        # Assert that the organization method was called with the correct argument
-        github_connection.organization.assert_called_once_with(organization)
+        # Assert that the get_organization method was called with the correct argument
+        github_connection.get_organization.assert_called_once_with(organization)
 
-        # Assert that the team_by_name method was called on the organization object
-        github_connection.organization.return_value.team_by_name.assert_called_once_with(
+        # Assert that the get_team_by_slug method was called on the organization object
+        github_connection.get_organization.return_value.get_team_by_slug.assert_called_once_with(
             team_name
         )
 
-        # Assert that the repositories method was called on the team object
-        github_connection.organization.return_value.team_by_name.return_value.repositories.assert_called_once()
+        # Assert that the get_repos method was called on the team object
+        github_connection.get_organization.return_value.get_team_by_slug.return_value.get_repos.assert_called_once()
 
         # Assert that the function returned the expected result
         self.assertEqual(result, mock_team_repositories)
 
-    @patch("github3.login")
-    def test_get_repos_iterator_with_team_no_repos(self, mock_github):
+    def test_get_repos_iterator_with_team_no_repos(self):
         """Test the get_repos_iterator function with a team that has no repositories"""
         organization = "my_organization"
         repository_list = []
         team_name = "empty_team"
         search_query = ""
-        github_connection = mock_github.return_value
+        github_connection = MagicMock()
 
-        github_connection.organization.return_value.team_by_name.return_value.repos_count = (
+        github_connection.get_organization.return_value.get_team_by_slug.return_value.repos_count = (
             0
         )
 
@@ -472,14 +472,13 @@ class TestGetReposIterator(unittest.TestCase):
 
         self.assertEqual(context.exception.code, 1)
 
-    @patch("github3.login")
-    def test_get_repos_iterator_with_search_query(self, mock_github):
+    def test_get_repos_iterator_with_search_query(self):
         """Test the get_repos_iterator function with a search query"""
         organization = "my_organization"
         repository_list = []
         team_name = None
         search_query = "org:my-org is:repository archived:false"
-        github_connection = mock_github.return_value
+        github_connection = MagicMock()
         repo1 = MagicMock()
         repo2 = MagicMock()
 
@@ -822,7 +821,7 @@ class TestCheckExistingConfig(unittest.TestCase):
         """
         mock_repo = MagicMock()
         filename = "dependabot.yaml"
-        mock_repo.file_contents.return_value.size = 5
+        mock_repo.get_contents.return_value.size = 5
 
         result = check_existing_config(mock_repo, filename)
 
@@ -833,9 +832,8 @@ class TestCheckExistingConfig(unittest.TestCase):
         Test the case where there is no existing configuration
         """
         mock_repo = MagicMock()
-        mock_response = MagicMock()
-        mock_repo.file_contents.side_effect = github3.exceptions.NotFoundError(
-            mock_response
+        mock_repo.get_contents.side_effect = UnknownObjectException(
+            status=404, data="Not Found"
         )
 
         result = check_existing_config(mock_repo, "dependabot.yml")

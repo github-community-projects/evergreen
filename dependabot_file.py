@@ -5,9 +5,9 @@ import copy
 import io
 from collections.abc import Mapping
 
-import github3
 import ruamel.yaml
 from exceptions import OptionalFileNotFoundError, check_optional_file
+from github import UnknownObjectException
 from ruamel.yaml.scalarstring import SingleQuotedScalarString
 
 # Define data structure for dependabot.yaml
@@ -349,8 +349,8 @@ def build_dependabot_file(
     # detect package managers with variable file names
     if "terraform" not in exempt_ecosystems_list:
         try:
-            for file in repo.directory_contents("/"):
-                if file[0].endswith(".tf"):
+            for file in repo.get_contents("/"):
+                if file.name.endswith(".tf"):
                     package_managers_found["terraform"] = True
                     make_dependabot_config(
                         "terraform",
@@ -363,14 +363,12 @@ def build_dependabot_file(
                         cooldown,
                     )
                     break
-        except github3.exceptions.NotFoundError:
-            # The file does not exist and is not required,
-            # so we should continue to the next one rather than raising error or logging
+        except UnknownObjectException:
             pass
     if "github-actions" not in exempt_ecosystems_list:
         try:
-            for file in repo.directory_contents(".github/workflows"):
-                if file[0].endswith(".yml") or file[0].endswith(".yaml"):
+            for file in repo.get_contents(".github/workflows"):
+                if file.name.endswith(".yml") or file.name.endswith(".yaml"):
                     package_managers_found["github-actions"] = True
                     make_dependabot_config(
                         "github-actions",
@@ -383,14 +381,12 @@ def build_dependabot_file(
                         cooldown,
                     )
                     break
-        except github3.exceptions.NotFoundError:
-            # The file does not exist and is not required,
-            # so we should continue to the next one rather than raising error or logging
+        except UnknownObjectException:
             pass
     if "devcontainers" not in exempt_ecosystems_list:
         try:
-            for file in repo.directory_contents(".devcontainer"):
-                if file[0] == "devcontainer.json":
+            for file in repo.get_contents(".devcontainer"):
+                if file.name == "devcontainer.json":
                     package_managers_found["devcontainers"] = True
                     make_dependabot_config(
                         "devcontainers",
@@ -403,9 +399,7 @@ def build_dependabot_file(
                         cooldown,
                     )
                     break
-        except github3.exceptions.NotFoundError:
-            # The file does not exist and is not required,
-            # so we should continue to the next one rather than raising error or logging
+        except UnknownObjectException:
             pass
 
     if any(package_managers_found.values()):
