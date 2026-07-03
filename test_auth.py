@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import auth
+from github import GithubException
 
 
 class TestAuth(unittest.TestCase):
@@ -262,7 +263,9 @@ class TestAuth(unittest.TestCase):
         mock_app_auth_cls.return_value = mock_app_auth
         mock_gi = MagicMock()
         mock_gi_cls.return_value = mock_gi
-        mock_gi.get_access_token.side_effect = Exception("Request failed")
+        mock_gi.get_access_token.side_effect = GithubException(
+            500, "Request failed", None
+        )
 
         result = auth.get_github_app_installation_token(
             ghe="https://api.github.com",

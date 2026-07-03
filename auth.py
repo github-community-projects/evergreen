@@ -1,7 +1,7 @@
 """This is the module that contains functions related to authenticating to GitHub with a personal access token."""
 
 import env
-from github import Auth, Github, GithubIntegration
+from github import Auth, Github, GithubException, GithubIntegration
 
 
 def auth_to_github(
@@ -81,6 +81,6 @@ def get_github_app_installation_token(
             gi = GithubIntegration(auth=app_auth)
         installation_token = gi.get_access_token(int(gh_app_installation_id))
         return installation_token.token
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except GithubException as e:
         print(f"Request failed: {e}")
         return None
