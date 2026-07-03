@@ -213,10 +213,10 @@ def main():  # pragma: no cover
         # Get dependabot security updates enabled if possible
         if config.enable_security_updates:
             if not is_dependabot_security_updates_enabled(
-                config.ghe, config.ghe_api_url, repo.owner, repo.name, token
+                config.ghe, config.ghe_api_url, repo.owner.login, repo.name, token
             ):
                 enable_dependabot_security_updates(
-                    config.ghe, config.ghe_api_url, repo.owner, repo.name, token
+                    config.ghe, config.ghe_api_url, repo.owner.login, repo.name, token
                 )
 
         if config.follow_up_type == "issue":
@@ -300,9 +300,16 @@ def main():  # pragma: no cover
     append_to_github_summary(summary_content)
 
 
-def is_repo_created_date_before(repo_created_at: str, created_after_date: str):
+def is_repo_created_date_before(
+    repo_created_at: str | datetime, created_after_date: str
+):
     """Check if the repository was created before the created_after_date"""
-    repo_created_at_date = datetime.fromisoformat(repo_created_at).replace(tzinfo=None)
+    if isinstance(repo_created_at, datetime):
+        repo_created_at_date = repo_created_at.replace(tzinfo=None)
+    else:
+        repo_created_at_date = datetime.fromisoformat(repo_created_at).replace(
+            tzinfo=None
+        )
     return created_after_date and repo_created_at_date < datetime.strptime(
         created_after_date, "%Y-%m-%d"
     )

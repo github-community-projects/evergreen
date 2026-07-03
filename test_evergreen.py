@@ -3,6 +3,7 @@
 
 import unittest
 import uuid
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import requests
@@ -800,6 +801,24 @@ class TestIsRepoCreateDateBeforeCreatedAfterDate(unittest.TestCase):
         result = is_repo_created_date_before(repo_created_at, created_after_date)
 
         self.assertTrue(result)
+
+    def test_is_repo_created_date_before_with_datetime_object(self):
+        """Test that a datetime object (as returned by PyGithub) is handled correctly."""
+        repo_created_at = datetime(2020, 1, 1, 5, 0, 0, tzinfo=timezone.utc)
+        created_after_date = "2021-01-01"
+
+        result = is_repo_created_date_before(repo_created_at, created_after_date)
+
+        self.assertTrue(result)
+
+    def test_is_repo_created_date_after_with_datetime_object(self):
+        """Test that a datetime object after the filter date returns False."""
+        repo_created_at = datetime(2022, 1, 1, 5, 0, 0, tzinfo=timezone.utc)
+        created_after_date = "2021-01-01"
+
+        result = is_repo_created_date_before(repo_created_at, created_after_date)
+
+        self.assertFalse(result)
 
     def test_is_repo_created_date_and_created_after_date_is_not_a_date(self):
         """Test the repo.created_at date and the created_after_date argument is not a date."""
