@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import Mock
 
 from exceptions import OptionalFileNotFoundError, check_optional_file
-from github import UnknownObjectException
+from github import GithubException, UnknownObjectException
 
 
 class TestOptionalFileNotFoundError(unittest.TestCase):
@@ -93,6 +93,40 @@ class TestCheckOptionalFile(unittest.TestCase):
 
         self.assertEqual(context.exception.__cause__, original_error)
         mock_repo.get_contents.assert_called_once_with("missing.yml")
+
+    def test_check_optional_file_with_empty_repository(self):
+        """Test check_optional_file when the repository is empty.
+
+        An empty repository returns a 404 that PyGithub raises as the base
+        GithubException rather than UnknownObjectException. It should be
+        translated to OptionalFileNotFoundError so the repository is skipped.
+        """
+        mock_repo = Mock()
+
+        original_error = GithubException(
+            status=404, data={"message": "This repository is empty."}
+        )
+        mock_repo.get_contents.side_effect = original_error
+
+        with self.assertRaises(OptionalFileNotFoundError) as context:
+            check_optional_file(mock_repo, "config.yml")
+
+        self.assertEqual(context.exception.__cause__, original_error)
+        mock_repo.get_contents.assert_called_once_with("config.yml")
+
+    def test_check_optional_file_reraises_non_404_github_exception(self):
+        """Test check_optional_file re-raises non-404 GithubExceptions unchanged."""
+        mock_repo = Mock()
+
+        original_error = GithubException(status=403, data={"message": "Forbidden"})
+        mock_repo.get_contents.side_effect = original_error
+
+        with self.assertRaises(GithubException) as context:
+            check_optional_file(mock_repo, "config.yml")
+
+        self.assertNotIsInstance(context.exception, OptionalFileNotFoundError)
+        self.assertEqual(context.exception.status, 403)
+        mock_repo.get_contents.assert_called_once_with("config.yml")
 
     def test_check_optional_file_can_catch_as_unknown_object_exception(self):
         """Test that OptionalFileNotFoundError from check_optional_file can be caught as UnknownObjectException."""
