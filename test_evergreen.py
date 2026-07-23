@@ -19,6 +19,7 @@ from evergreen import (
     get_global_project_id,
     get_repos_iterator,
     is_dependabot_security_updates_enabled,
+    is_empty_repo,
     is_repo_created_date_before,
     link_item_to_project,
 )
@@ -360,6 +361,22 @@ class TestCheckPendingIssuesForDuplicates(unittest.TestCase):
 
         # Assert that the function returned the expected result
         self.assertTrue(result)
+
+
+class TestIsEmptyRepo(unittest.TestCase):
+    """Test the is_empty_repo function in evergreen.py"""
+
+    def test_is_empty_repo_true_for_size_zero(self):
+        """A repository with no commits reports size 0 and is considered empty."""
+        mock_repo = MagicMock()
+        mock_repo.size = 0
+        self.assertTrue(is_empty_repo(mock_repo))
+
+    def test_is_empty_repo_false_for_non_zero_size(self):
+        """A repository with content is not considered empty."""
+        mock_repo = MagicMock()
+        mock_repo.size = 42
+        self.assertFalse(is_empty_repo(mock_repo))
 
 
 class TestGetReposIterator(unittest.TestCase):
