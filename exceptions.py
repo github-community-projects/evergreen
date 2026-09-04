@@ -1,6 +1,6 @@
 """Custom exceptions for the evergreen application."""
 
-from github import UnknownObjectException
+from github import GithubException, UnknownObjectException
 
 
 class OptionalFileNotFoundError(UnknownObjectException):
@@ -47,3 +47,13 @@ def check_optional_file(repo, filename):
         raise OptionalFileNotFoundError(
             status=e.status, data=e.data, headers=e.headers
         ) from e
+    except GithubException as e:
+        # An empty repository (one with no commits) returns a 404 that PyGithub
+        # raises as the base GithubException ("This repository is empty.")
+        # rather than UnknownObjectException. Treat it the same as a missing
+        # optional file so the repository is skipped instead of crashing the run.
+        if e.status == 404:
+            raise OptionalFileNotFoundError(
+                status=e.status, data=e.data, headers=e.headers
+            ) from e
+        raise
