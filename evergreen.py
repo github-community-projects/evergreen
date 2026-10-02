@@ -111,6 +111,9 @@ def main():  # pragma: no cover
         if repo.archived:
             print(f"Skipping {repo.full_name} (archived)")
             continue
+        if is_empty_repo(repo):
+            print(f"Skipping {repo.full_name} (empty repository)")
+            continue
         if repo.visibility.lower() not in config.filter_visibility:
             print(f"Skipping {repo.full_name} (visibility-filtered)")
             continue
@@ -313,6 +316,17 @@ def is_repo_created_date_before(
     return created_after_date and repo_created_at_date < datetime.strptime(
         created_after_date, "%Y-%m-%d"
     )
+
+
+def is_empty_repo(repo):
+    """Check whether the repository is empty (has no commits).
+
+    Empty repositories cannot hold or receive a dependabot configuration, and
+    every ``repo.get_contents(...)`` call against them returns a 404
+    ("This repository is empty."). Detecting them up front lets the caller skip
+    them before any content lookup, rather than crashing partway through.
+    """
+    return repo.size == 0
 
 
 def is_dependabot_security_updates_enabled(ghe, ghe_api_url, owner, repo, access_token):
