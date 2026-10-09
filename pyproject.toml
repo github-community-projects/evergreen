@@ -5,7 +5,7 @@ description = "GitHub Action that enables Dependabot for all repositories in a G
 requires-python = ">=3.11"
 dependencies = [
     "PyGithub>=2.6.0",
-    "python-dotenv==1.2.3",
+    "python-dotenv==1.2.4",
     "requests==2.34.2",
     "ruamel-yaml==0.19.1",
 ]
@@ -14,10 +14,10 @@ dependencies = [
 dev = [
     "black==26.5.1",
     "flake8==7.4.1",
-    "isort==9.0.1",
-    "mypy==2.3.1",
+    "isort==9.0.2",
+    "mypy==2.4.0",
     "mypy-extensions==1.1.0",
-    "pylint==4.0.9",
+    "pylint==4.1.1",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "types-PyYAML==6.0.12.20250915",
