@@ -3,15 +3,16 @@
 import io
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
+
+import requests
+import ruamel.yaml
+from github import UnknownObjectException
 
 import auth
 import env
-import requests
-import ruamel.yaml
 from dependabot_file import build_dependabot_file, validate_cooldown_config
 from exceptions import OptionalFileNotFoundError, check_optional_file
-from github import UnknownObjectException
 
 
 def main():  # pragma: no cover
@@ -211,13 +212,15 @@ def main():  # pragma: no cover
             continue
 
         # Get dependabot security updates enabled if possible
-        if config.enable_security_updates:
-            if not is_dependabot_security_updates_enabled(
+        if (
+            config.enable_security_updates
+            and not is_dependabot_security_updates_enabled(
                 config.ghe, config.ghe_api_url, repo.owner.login, repo.name, token
-            ):
-                enable_dependabot_security_updates(
-                    config.ghe, config.ghe_api_url, repo.owner.login, repo.name, token
-                )
+            )
+        ):
+            enable_dependabot_security_updates(
+                config.ghe, config.ghe_api_url, repo.owner.login, repo.name, token
+            )
 
         if config.follow_up_type == "issue":
             skip = check_pending_issues_for_duplicates(config.title, repo)
@@ -294,8 +297,8 @@ def main():  # pragma: no cover
                     print("\tFailed to create pull request. Check write permissions.")
                     continue
 
-    print(f"Done. {str(count_eligible)} repositories were eligible.")
-    print(f"{str(count_prs_created)} pull requests were created.")
+    print(f"Done. {count_eligible!s} repositories were eligible.")
+    print(f"{count_prs_created!s} pull requests were created.")
     # Append the summary content to the GitHub step summary file
     append_to_github_summary(summary_content)
 
@@ -305,14 +308,14 @@ def is_repo_created_date_before(
 ):
     """Check if the repository was created before the created_after_date"""
     if isinstance(repo_created_at, datetime):
-        repo_created_at_date = repo_created_at.replace(tzinfo=None)
+        repo_created_at_date = repo_created_at.replace(tzinfo=timezone.utc)
     else:
         repo_created_at_date = datetime.fromisoformat(repo_created_at).replace(
-            tzinfo=None
+            tzinfo=timezone.utc
         )
     return created_after_date and repo_created_at_date < datetime.strptime(
         created_after_date, "%Y-%m-%d"
-    )
+    ).replace(tzinfo=timezone.utc)
 
 
 def is_dependabot_security_updates_enabled(ghe, ghe_api_url, owner, repo, access_token):

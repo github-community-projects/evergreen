@@ -1,7 +1,7 @@
 #checkov:skip=CKV_DOCKER_2
 #checkov:skip=CKV_DOCKER_3
 #trivy:ignore:AVD-DS-0002
-FROM python:3.14.6-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1
+FROM python:3.14.7-slim@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d
 LABEL org.opencontainers.image.source https://github.com/github-community-projects/evergreen
 
 WORKDIR /action/workspace
@@ -16,7 +16,7 @@ RUN uv sync --frozen --no-dev --no-editable \
 
 # Add a simple healthcheck to satisfy container scanners
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD python3 -c "import os,sys; sys.exit(0 if os.path.exists('/action/workspace/evergreen.py') else 1)"
+  CMD ["python3", "-c", "import os,sys; sys.exit(0 if os.path.exists('/action/workspace/evergreen.py') else 1)"]
 
 ENV PYTHONUNBUFFERED=1
 ENV UV_LINK_MODE=copy

@@ -6,9 +6,10 @@ import io
 from collections.abc import Mapping
 
 import ruamel.yaml
-from exceptions import OptionalFileNotFoundError, check_optional_file
 from github import GithubException
 from ruamel.yaml.scalarstring import SingleQuotedScalarString
+
+from exceptions import OptionalFileNotFoundError, check_optional_file
 
 # Define data structure for dependabot.yaml
 data = {
@@ -28,6 +29,29 @@ COOLDOWN_DAYS_KEYS_ORDERED = (
 )
 VALID_COOLDOWN_DAYS_KEYS = frozenset(COOLDOWN_DAYS_KEYS_ORDERED)
 VALID_COOLDOWN_KEYS = VALID_COOLDOWN_DAYS_KEYS | {"include", "exclude"}
+SEMVER_COOLDOWN_ECOSYSTEMS = frozenset(
+    {
+        "bundler",
+        "bun",
+        "cargo",
+        "composer",
+        "conda",
+        "dotnet-sdk",
+        "elm",
+        "gomod",
+        "gradle",
+        "julia",
+        "maven",
+        "mix",
+        "npm",
+        "nuget",
+        "pip",
+        "pub",
+        "rust-toolchain",
+        "swift",
+        "uv",
+    }
+)
 MAX_COOLDOWN_LIST_ITEMS = 150
 MIN_COOLDOWN_DAYS = 1
 MAX_COOLDOWN_DAYS = 90
@@ -44,7 +68,9 @@ def validate_cooldown_config(cooldown):
         ValueError: if the cooldown configuration is invalid
     """
     if not isinstance(cooldown, Mapping):
-        raise ValueError("Cooldown configuration must be a mapping")
+        raise ValueError(  # noqa: TRY004 - callers catch ValueError
+            "Cooldown configuration must be a mapping"
+        )
 
     unknown_keys = set(cooldown.keys()) - VALID_COOLDOWN_KEYS
     if unknown_keys:
@@ -86,7 +112,9 @@ def validate_cooldown_config(cooldown):
                 )
             for item in items:
                 if not isinstance(item, str):
-                    raise ValueError(f"Cooldown '{list_key}' items must be strings")
+                    raise ValueError(  # noqa: TRY004 - callers catch ValueError
+                        f"Cooldown '{list_key}' items must be strings"
+                    )
 
 
 def list_contents_or_empty(repo, path):
@@ -183,14 +211,17 @@ def make_dependabot_config(
     if cooldown:
         cooldown_config = {}
         for key in COOLDOWN_DAYS_KEYS_ORDERED:
-            if key in cooldown:
+            if key in cooldown and (
+                key == "default-days" or ecosystem in SEMVER_COOLDOWN_ECOSYSTEMS
+            ):
                 cooldown_config[key] = cooldown[key]
-        for list_key in ("include", "exclude"):
-            if list_key in cooldown:
-                cooldown_config[list_key] = [
-                    SingleQuotedScalarString(item) for item in cooldown[list_key]
-                ]
-        dependabot_config["updates"][-1].update({"cooldown": cooldown_config})
+        if cooldown_config:
+            for list_key in ("include", "exclude"):
+                if list_key in cooldown:
+                    cooldown_config[list_key] = [
+                        SingleQuotedScalarString(item) for item in cooldown[list_key]
+                    ]
+            dependabot_config["updates"][-1].update({"cooldown": cooldown_config})
 
 
 def build_dependabot_file(

@@ -276,7 +276,7 @@ Please enable it by merging this pull request so that we can keep our dependenci
                 "Here's an example of the code:"
             ),
         }
-        body = body = default_bodies[follow_up_type]
+        body = default_bodies[follow_up_type]
 
     commit_message = os.getenv("COMMIT_MESSAGE")
     if commit_message:
@@ -313,7 +313,7 @@ Please enable it by merging this pull request so that we can keep our dependenci
                     "FILTER_VISIBILITY environment variable not 'public', 'private', or 'internal'"
                 )
             filter_visibility_set.add(visibility.strip().lower())
-        filter_visibility_list = sorted(list(filter_visibility_set))
+        filter_visibility_list = sorted(filter_visibility_set)
     else:
         filter_visibility_list = sorted(["public", "private", "internal"])  # all
 

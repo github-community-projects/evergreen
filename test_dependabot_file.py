@@ -7,12 +7,13 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import ruamel.yaml
+from github import GithubException, UnknownObjectException
+
 from dependabot_file import (
     add_existing_ecosystem_to_exempt_list,
     build_dependabot_file,
     list_contents_or_empty,
 )
-from github import GithubException, UnknownObjectException
 
 yaml = ruamel.yaml.YAML()
 
@@ -510,7 +511,7 @@ updates:
         repo = MagicMock()
 
         # Test absence of Terraform files
-        repo.get_contents.side_effect = lambda path: [] if path == "/" else []
+        repo.get_contents.side_effect = lambda path: []
         result = build_dependabot_file(
             repo, False, [], {}, None, "weekly", "", [], None
         )
@@ -880,8 +881,8 @@ updates:
         )
         self.assertEqual(result, expected_result)
 
-    def test_build_dependabot_file_with_cooldown_all_params(self):
-        """Test that cooldown with all semver day parameters is added correctly"""
+    def test_build_dependabot_file_filters_unsupported_semver_cooldown_params(self):
+        """Test that ecosystems without SemVer cooldown support only get default-days"""
         repo = MagicMock()
         repo.get_contents.side_effect = lambda filename: filename == "Dockerfile" or []
 
@@ -900,13 +901,90 @@ updates:
       interval: 'weekly'
     cooldown:
       default-days: 3
-      semver-major-days: 7
-      semver-minor-days: 3
-      semver-patch-days: 1
 """)
         result = build_dependabot_file(
             repo, False, [], {}, None, "weekly", "", [], None, cooldown
         )
+        self.assertEqual(result, expected_result)
+
+    def test_build_dependabot_file_filters_github_actions_semver_cooldown_params(self):
+        """Test that GitHub Actions keeps general cooldown fields but not SemVer fields"""
+        repo = MagicMock()
+        workflow_file = MagicMock()
+        workflow_file.name = "test.yml"
+
+        def get_contents(path):
+            if path == "package.json":
+                return True
+            if path == ".github/workflows":
+                return [workflow_file]
+            return []
+
+        repo.get_contents.side_effect = get_contents
+        cooldown = {
+            "default-days": 7,
+            "semver-major-days": 14,
+            "semver-minor-days": 7,
+            "semver-patch-days": 3,
+            "exclude": ["critical-package"],
+        }
+        expected_result = yaml.load(b"""
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 3
+      exclude:
+        - 'critical-package'
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    cooldown:
+      default-days: 7
+      exclude:
+        - 'critical-package'
+""")
+
+        result = build_dependabot_file(
+            repo, False, [], {}, None, "weekly", "", [], None, cooldown
+        )
+
+        self.assertEqual(result, expected_result)
+
+    def test_build_dependabot_file_omits_unsupported_semver_only_cooldown(self):
+        """Test that GitHub Actions omits cooldown when no supported day field remains"""
+        repo = MagicMock()
+        workflow_file = MagicMock()
+        workflow_file.name = "test.yml"
+        repo.get_contents.side_effect = lambda path: (
+            [workflow_file] if path == ".github/workflows" else []
+        )
+        cooldown = {
+            "semver-major-days": 14,
+            "semver-minor-days": 7,
+            "semver-patch-days": 3,
+            "exclude": ["critical-package"],
+        }
+        expected_result = yaml.load(b"""
+version: 2
+updates:
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+""")
+
+        result = build_dependabot_file(
+            repo, False, [], {}, None, "weekly", "", [], None, cooldown
+        )
+
         self.assertEqual(result, expected_result)
 
     def test_build_dependabot_file_with_cooldown_include_exclude(self):
