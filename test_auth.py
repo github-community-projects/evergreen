@@ -3,8 +3,9 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-import auth
 from github import GithubException
+
+import auth
 
 
 class TestAuth(unittest.TestCase):

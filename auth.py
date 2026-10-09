@@ -1,7 +1,8 @@
 """This is the module that contains functions related to authenticating to GitHub with a personal access token."""
 
-import env
 from github import Auth, Github, GithubException, GithubIntegration
+
+import env
 
 
 def auth_to_github(

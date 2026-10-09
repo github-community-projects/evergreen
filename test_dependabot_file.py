@@ -7,8 +7,9 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import ruamel.yaml
-from dependabot_file import add_existing_ecosystem_to_exempt_list, build_dependabot_file
 from github import UnknownObjectException
+
+from dependabot_file import add_existing_ecosystem_to_exempt_list, build_dependabot_file
 
 yaml = ruamel.yaml.YAML()
 
@@ -492,7 +493,7 @@ updates:
         repo = MagicMock()
 
         # Test absence of Terraform files
-        repo.get_contents.side_effect = lambda path: [] if path == "/" else []
+        repo.get_contents.side_effect = lambda path: []
         result = build_dependabot_file(
             repo, False, [], {}, None, "weekly", "", [], None
         )
