@@ -7,9 +7,13 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import ruamel.yaml
-from github import UnknownObjectException
+from github import GithubException, UnknownObjectException
 
-from dependabot_file import add_existing_ecosystem_to_exempt_list, build_dependabot_file
+from dependabot_file import (
+    add_existing_ecosystem_to_exempt_list,
+    build_dependabot_file,
+    list_contents_or_empty,
+)
 
 yaml = ruamel.yaml.YAML()
 
@@ -24,6 +28,20 @@ class TestDependabotFile(unittest.TestCase):
         repo = MagicMock()
         repo.get_contents.side_effect = UnknownObjectException(
             status=404, data="Not Found"
+        )
+
+        result = build_dependabot_file(repo, False, [], {}, None, "", "", [], None)
+        self.assertIsNone(result)
+
+    def test_empty_repository(self):
+        """Test that an empty repository returns None instead of crashing.
+
+        An empty repository returns a 404 that PyGithub raises as the base
+        GithubException ("This repository is empty.") for every content lookup.
+        """
+        repo = MagicMock()
+        repo.get_contents.side_effect = GithubException(
+            status=404, data={"message": "This repository is empty."}
         )
 
         result = build_dependabot_file(repo, False, [], {}, None, "", "", [], None)
@@ -1076,6 +1094,48 @@ updates:
             repo, False, [], {}, None, "weekly", "", [], None, None
         )
         self.assertEqual(result, expected_result)
+
+
+class TestListContentsOrEmpty(unittest.TestCase):
+    """Test the list_contents_or_empty function."""
+
+    def test_returns_contents(self):
+        """Test that directory contents are returned when the path exists."""
+        repo = MagicMock()
+        contents = [MagicMock(), MagicMock()]
+        repo.get_contents.return_value = contents
+
+        self.assertEqual(list_contents_or_empty(repo, "/"), contents)
+        repo.get_contents.assert_called_once_with("/")
+
+    def test_missing_path_returns_empty_list(self):
+        """Test that a missing path (UnknownObjectException 404) returns []."""
+        repo = MagicMock()
+        repo.get_contents.side_effect = UnknownObjectException(
+            status=404, data="Not Found"
+        )
+
+        self.assertEqual(list_contents_or_empty(repo, ".devcontainer"), [])
+
+    def test_empty_repository_returns_empty_list(self):
+        """Test that an empty repository (base GithubException 404) returns []."""
+        repo = MagicMock()
+        repo.get_contents.side_effect = GithubException(
+            status=404, data={"message": "This repository is empty."}
+        )
+
+        self.assertEqual(list_contents_or_empty(repo, ".github/workflows"), [])
+
+    def test_non_404_error_is_reraised(self):
+        """Test that non-404 GithubExceptions are re-raised unchanged."""
+        repo = MagicMock()
+        original_error = GithubException(status=403, data={"message": "Forbidden"})
+        repo.get_contents.side_effect = original_error
+
+        with self.assertRaises(GithubException) as context:
+            list_contents_or_empty(repo, "/")
+
+        self.assertIs(context.exception, original_error)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import io
 from collections.abc import Mapping
 
 import ruamel.yaml
-from github import UnknownObjectException
+from github import GithubException
 from ruamel.yaml.scalarstring import SingleQuotedScalarString
 
 from exceptions import OptionalFileNotFoundError, check_optional_file
@@ -115,6 +115,18 @@ def validate_cooldown_config(cooldown):
                     raise ValueError(  # noqa: TRY004 - callers catch ValueError
                         f"Cooldown '{list_key}' items must be strings"
                     )
+
+
+def list_contents_or_empty(repo, path):
+    """Return directory contents at path, or [] when the path is missing or the
+    repo is empty. A missing path 404s as UnknownObjectException; an empty repo
+    404s as the base GithubException. Both mean "nothing here"."""
+    try:
+        return repo.get_contents(path)
+    except GithubException as e:
+        if e.status == 404:
+            return []
+        raise
 
 
 def make_dependabot_config(
@@ -379,59 +391,50 @@ def build_dependabot_file(
 
     # detect package managers with variable file names
     if "terraform" not in exempt_ecosystems_list:
-        try:
-            for file in repo.get_contents("/"):
-                if file.name.endswith(".tf"):
-                    package_managers_found["terraform"] = True
-                    make_dependabot_config(
-                        "terraform",
-                        group_dependencies,
-                        schedule,
-                        schedule_day,
-                        labels,
-                        dependabot_file,
-                        extra_dependabot_config,
-                        cooldown,
-                    )
-                    break
-        except UnknownObjectException:
-            pass
+        for file in list_contents_or_empty(repo, "/"):
+            if file.name.endswith(".tf"):
+                package_managers_found["terraform"] = True
+                make_dependabot_config(
+                    "terraform",
+                    group_dependencies,
+                    schedule,
+                    schedule_day,
+                    labels,
+                    dependabot_file,
+                    extra_dependabot_config,
+                    cooldown,
+                )
+                break
     if "github-actions" not in exempt_ecosystems_list:
-        try:
-            for file in repo.get_contents(".github/workflows"):
-                if file.name.endswith(".yml") or file.name.endswith(".yaml"):
-                    package_managers_found["github-actions"] = True
-                    make_dependabot_config(
-                        "github-actions",
-                        group_dependencies,
-                        schedule,
-                        schedule_day,
-                        labels,
-                        dependabot_file,
-                        extra_dependabot_config,
-                        cooldown,
-                    )
-                    break
-        except UnknownObjectException:
-            pass
+        for file in list_contents_or_empty(repo, ".github/workflows"):
+            if file.name.endswith(".yml") or file.name.endswith(".yaml"):
+                package_managers_found["github-actions"] = True
+                make_dependabot_config(
+                    "github-actions",
+                    group_dependencies,
+                    schedule,
+                    schedule_day,
+                    labels,
+                    dependabot_file,
+                    extra_dependabot_config,
+                    cooldown,
+                )
+                break
     if "devcontainers" not in exempt_ecosystems_list:
-        try:
-            for file in repo.get_contents(".devcontainer"):
-                if file.name == "devcontainer.json":
-                    package_managers_found["devcontainers"] = True
-                    make_dependabot_config(
-                        "devcontainers",
-                        group_dependencies,
-                        schedule,
-                        schedule_day,
-                        labels,
-                        dependabot_file,
-                        extra_dependabot_config,
-                        cooldown,
-                    )
-                    break
-        except UnknownObjectException:
-            pass
+        for file in list_contents_or_empty(repo, ".devcontainer"):
+            if file.name == "devcontainer.json":
+                package_managers_found["devcontainers"] = True
+                make_dependabot_config(
+                    "devcontainers",
+                    group_dependencies,
+                    schedule,
+                    schedule_day,
+                    labels,
+                    dependabot_file,
+                    extra_dependabot_config,
+                    cooldown,
+                )
+                break
 
     if any(package_managers_found.values()):
         return dependabot_file
