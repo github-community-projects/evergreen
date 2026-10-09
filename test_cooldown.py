@@ -2,8 +2,9 @@
 
 import unittest
 
-from dependabot_file import validate_cooldown_config
 from ruamel.yaml import YAML
+
+from dependabot_file import validate_cooldown_config
 
 
 class TestValidateCooldownConfig(unittest.TestCase):

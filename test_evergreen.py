@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import requests
+from github import UnknownObjectException
+
 from evergreen import (
     append_to_github_summary,
     check_existing_config,
@@ -22,7 +24,6 @@ from evergreen import (
     is_repo_created_date_before,
     link_item_to_project,
 )
-from github import UnknownObjectException
 
 
 class TestDependabotSecurityUpdates(unittest.TestCase):

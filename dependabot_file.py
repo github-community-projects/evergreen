@@ -6,9 +6,10 @@ import io
 from collections.abc import Mapping
 
 import ruamel.yaml
-from exceptions import OptionalFileNotFoundError, check_optional_file
 from github import UnknownObjectException
 from ruamel.yaml.scalarstring import SingleQuotedScalarString
+
+from exceptions import OptionalFileNotFoundError, check_optional_file
 
 # Define data structure for dependabot.yaml
 data = {
@@ -67,7 +68,9 @@ def validate_cooldown_config(cooldown):
         ValueError: if the cooldown configuration is invalid
     """
     if not isinstance(cooldown, Mapping):
-        raise ValueError("Cooldown configuration must be a mapping")
+        raise ValueError(  # noqa: TRY004 - callers catch ValueError
+            "Cooldown configuration must be a mapping"
+        )
 
     unknown_keys = set(cooldown.keys()) - VALID_COOLDOWN_KEYS
     if unknown_keys:
@@ -109,7 +112,9 @@ def validate_cooldown_config(cooldown):
                 )
             for item in items:
                 if not isinstance(item, str):
-                    raise ValueError(f"Cooldown '{list_key}' items must be strings")
+                    raise ValueError(  # noqa: TRY004 - callers catch ValueError
+                        f"Cooldown '{list_key}' items must be strings"
+                    )
 
 
 def make_dependabot_config(
