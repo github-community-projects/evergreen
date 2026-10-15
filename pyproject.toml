@@ -12,12 +12,12 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "black==26.5.1",
+    "black==26.10.0",
     "flake8==7.4.1",
     "isort==9.0.2",
     "mypy==2.4.0",
     "mypy-extensions==1.1.0",
-    "pylint==4.1.1",
+    "pylint==4.1.2",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "types-PyYAML==6.0.12.20250915",
