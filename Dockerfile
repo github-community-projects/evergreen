@@ -1,7 +1,7 @@
 #checkov:skip=CKV_DOCKER_2
 #checkov:skip=CKV_DOCKER_3
 #trivy:ignore:AVD-DS-0002
-FROM python:3.14.7-slim@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d
+FROM python:3.15.0-slim@sha256:f5b92f2a669a4c347044f29367f31983280b648250ca94dea66f98c53bc87e58
 LABEL org.opencontainers.image.source https://github.com/github-community-projects/evergreen
 
 WORKDIR /action/workspace
@@ -9,9 +9,14 @@ COPY pyproject.toml uv.lock *.py /action/workspace/
 
 COPY --from=ghcr.io/astral-sh/uv:0.10.9@sha256:10902f58a1606787602f303954cea099626a4adb02acbac4c69920fe9d278f82 /uv /uvx /bin/
 
-RUN uv sync --frozen --no-dev --no-editable \
-    && apt-get -y update \
-    && apt-get -y install --no-install-recommends git=1:2.47.3-0+deb13u1 \
+RUN apt-get -y update \
+    && apt-get -y install --no-install-recommends \
+        gcc=4:14.2.0-1 \
+        git=1:2.47.3-0+deb13u1 \
+        libc6-dev=2.41-12+deb13u4 \
+        libffi-dev=3.4.8-2 \
+    && uv sync --frozen --no-dev --no-editable \
+    && apt-get -y purge --auto-remove gcc libc6-dev libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Add a simple healthcheck to satisfy container scanners
