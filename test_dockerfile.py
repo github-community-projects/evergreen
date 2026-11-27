@@ -43,9 +43,10 @@ def _extract_apt_package_tokens(operation: str) -> list[str]:
             if operation not in tokens[1:]:
                 continue
             operation_index = tokens.index(operation)
+            package_start_index = operation_index + 1
             package_tokens.extend(
                 token
-                for token in tokens[operation_index + 1 :]
+                for token in tokens[package_start_index:]
                 if not token.startswith("-")
             )
     return package_tokens
