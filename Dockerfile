@@ -13,7 +13,7 @@ RUN apt-get -y update \
     && apt-get -y install --no-install-recommends \
         gcc=4:14.2.0-1 \
         git=1:2.47.3-0+deb13u1 \
-        libc6-dev=2.41-12+deb13u4 \
+        libc6-dev=2.41-12+deb13u5 \
         libffi-dev=3.4.8-2 \
     && uv sync --frozen --no-dev --no-editable \
     && apt-get -y purge --auto-remove gcc libc6-dev libffi-dev \
