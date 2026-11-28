@@ -25,4 +25,7 @@ jobs:
       - name: Build the Docker image
         run: docker build . --file Dockerfile --platform linux/amd64 --tag evergreen:ci
       - name: Test the production image without network access
-        run: docker run --rm --network none evergreen:ci python -m unittest -v test_container
+        run: |
+          docker run --rm --network none \
+            --volume "$PWD/test_container.py:/action/workspace/test_container.py:ro" \
+            evergreen:ci python -m unittest -v test_container
