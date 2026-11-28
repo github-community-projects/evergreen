@@ -36,7 +36,8 @@ def _install_pins(text: str) -> dict[str, str]:
     for command in _literal_commands(text):
         if command[0] != "apt-get" or "install" not in command[1:]:
             continue
-        packages = command[command.index("install") + 1 :]
+        start = command.index("install") + 1
+        packages = command[start:]
         assert packages, "An install command must list packages"
         for package in packages:
             if package in {"-y", "--yes", "--no-install-recommends"}:
