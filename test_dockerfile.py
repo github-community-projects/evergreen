@@ -42,7 +42,7 @@ def _build_commands(text: str) -> list[list[str]]:
             runs.append(instruction[2] or "")
     assert len(runs) == 1, "Keep package installation and cleanup in one RUN layer"
     assert not runs[0].lstrip().startswith(("[", "<<")), "Use explicit shell-form RUN"
-    lexer = shlex.shlex(runs[0], posix=True, punctuation_chars=";&|()")
+    lexer = shlex.shlex(runs[0], posix=False, punctuation_chars=";&|()")
     lexer.whitespace_split = True
     lexer.commenters = ""
     commands: list[list[str]] = [[]]
@@ -51,6 +51,17 @@ def _build_commands(text: str) -> list[list[str]]:
             assert commands[-1], "Empty shell command"
             commands.append([])
         else:
+            if token.startswith(("'", '"')):
+                arguments = shlex.split(token)
+                assert len(arguments) == 1, "Unsupported quoted argument"
+                token = arguments[0]
+                assert not any(
+                    char in token for char in "*?[]"
+                ), "Unsupported quoted wildcard"
+            else:
+                assert not any(
+                    char in token for char in "\\\"'"
+                ), "Unsupported mixed quoting or escaping"
             assert not any(
                 char in token for char in "$`;&|()#"
             ), "Unsupported shell expansion or operator"
@@ -107,9 +118,7 @@ def test_dockerfile_pins_every_direct_install_package():
     assert set(_install_pins(text)) == {"gcc", "git", "libc6-dev", "libffi-dev"}
 
 
-def test_dockerfile_preserves_frozen_dependencies_and_runtime_git():
-    """Build tools must survive sync, then leave the same layer without removing Git."""
-    text = Path(__file__).with_name("Dockerfile").read_text(encoding="utf-8")
+def _validate_runtime_contract(text: str) -> None:
     commands = _build_commands(text)
     assert [command[0] for command in commands] == [
         "apt-get",
@@ -126,6 +135,30 @@ def test_dockerfile_preserves_frozen_dependencies_and_runtime_git():
     assert set(removed) == {"gcc", "libc6-dev", "libffi-dev"}
     assert "--auto-remove" in commands[3]
     assert commands[4] == ["rm", "-rf", "/var/lib/apt/lists/*"]
+
+
+def test_dockerfile_preserves_frozen_dependencies_and_runtime_git():
+    """Build tools must survive sync, then leave the same layer without removing Git."""
+    _validate_runtime_contract(
+        Path(__file__).with_name("Dockerfile").read_text(encoding="utf-8")
+    )
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "reason"),
+    [
+        ("&& uv sync", "'&&' uv sync", "Unsupported shell"),
+        ("/var/lib/apt/lists/*", "'/var/lib/apt/lists/*'", "quoted wildcard"),
+        ("/var/lib/apt/lists/*", "/var/lib/apt/lists/\\*", "mixed quoting or escaping"),
+    ],
+)
+def test_runtime_contract_rejects_quoted_or_escaped_shell_syntax(before, after, reason):
+    """Quoting must not turn shell operators or wildcard cleanup into ordinary arguments."""
+    original = Path(__file__).with_name("Dockerfile").read_text(encoding="utf-8")
+    mutated = original.replace(before, after, 1)
+    assert mutated != original
+    with pytest.raises(AssertionError, match=reason):
+        _validate_runtime_contract(mutated)
 
 
 def test_exact_pin_policy_accepts_debian_versions_and_shell_quoting():
