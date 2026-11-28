@@ -27,7 +27,9 @@ class ContainerTests(unittest.TestCase):
 
     def test_build_packages_are_absent(self):
         """Compilation dependencies must not remain in the shipped image."""
-        self.assertIsNone(shutil.which("gcc"))
+        for tool in ("cc", "gcc", "cpp", "as", "ld"):
+            with self.subTest(tool=tool):
+                self.assertIsNone(shutil.which(tool), tool)
         for package in ("gcc", "libc6-dev", "libffi-dev"):
             with self.subTest(package=package):
                 result = subprocess.run(
