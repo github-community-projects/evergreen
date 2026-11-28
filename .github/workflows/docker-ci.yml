@@ -23,4 +23,6 @@ jobs:
         with:
           persist-credentials: false
       - name: Build the Docker image
-        run: docker build . --file Dockerfile --platform linux/amd64
+        run: docker build . --file Dockerfile --platform linux/amd64 --tag evergreen:ci
+      - name: Test the production image without network access
+        run: docker run --rm --network none evergreen:ci python -m unittest -v test_container

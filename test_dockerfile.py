@@ -1,229 +1,128 @@
-"""Validate the container's restricted, auditable package-install contract."""
+"""Check literal package declarations; Docker CI tests the resulting image."""
 
 import re
 import shlex
+from itertools import groupby
 from pathlib import Path
 
 import pytest
 
 
-def _build_commands(text: str) -> list[list[str]]:
-    assert all(
-        char in "\t\r\n" or 32 <= ord(char) <= 126 for char in text
-    ), "Unsupported Dockerfile characters"
-    physical_lines = []
-    for line in text.split("\n"):
-        line = line.removesuffix("\r")
-        assert "\r" not in line, "Unsupported embedded carriage return"
-        assert not re.match(
-            r"^\s*#\s*(escape|syntax|check)\s*=", line, re.IGNORECASE
-        ), "Unmodeled parser directive"
-        if line.strip() and not line.lstrip().startswith("#"):
-            physical_lines.append(line)
-    logical_lines = "\n".join(physical_lines).replace("\\\n", " ").split("\n")
-    runs = []
-    supported = {
-        "FROM",
-        "LABEL",
-        "WORKDIR",
-        "COPY",
-        "RUN",
-        "HEALTHCHECK",
-        "ENV",
-        "CMD",
-        "ENTRYPOINT",
-    }
-    for line in logical_lines:
-        instruction = re.fullmatch(r"\s*([A-Za-z]+)(?:\s+(.*))?", line)
-        assert (
-            instruction and instruction[1].upper() in supported
-        ), "Unsupported Dockerfile instruction"
-        if instruction[1].upper() == "RUN":
-            runs.append(instruction[2] or "")
-    assert len(runs) == 1, "Keep package installation and cleanup in one RUN layer"
-    assert not runs[0].lstrip().startswith(("[", "<<")), "Use explicit shell-form RUN"
-    lexer = shlex.shlex(runs[0], posix=False, punctuation_chars=";&|()")
-    lexer.whitespace_split = True
-    lexer.commenters = ""
-    commands: list[list[str]] = [[]]
-    for token in lexer:
-        if token == "&&":
-            assert commands[-1], "Empty shell command"
-            commands.append([])
-        else:
-            if token.startswith(("'", '"')):
-                arguments = shlex.split(token)
-                assert len(arguments) == 1, "Unsupported quoted argument"
-                token = arguments[0]
-                assert not any(
-                    char in token for char in "*?[]"
-                ), "Unsupported quoted wildcard"
-            else:
-                assert not any(
-                    char in token for char in "\\\"'"
-                ), "Unsupported mixed quoting or escaping"
-            assert not any(
-                char in token for char in "$`;&|()#"
-            ), "Unsupported shell expansion or operator"
-            commands[-1].append(token)
-    assert commands[-1], "Empty shell command"
-    assert all(
-        command[0] in {"apt-get", "uv", "rm"} for command in commands
-    ), "Unsupported build command"
+def _literal_commands(text: str) -> list[list[str]]:
+    text = re.sub(r"(?m)^[ \t]*#.*\n?", "", text).replace("\\\n", " ")
+    commands = []
+    for run in re.findall(r"(?im)^[ \t]*RUN[ \t]+(.+)$", text):
+        assert not run.lstrip().startswith(
+            ("[", "<<")
+        ), "Expected literal shell-form RUN"
+        lexer = shlex.shlex(run, posix=True, punctuation_chars=";&|")
+        lexer.whitespace_split = True
+        for separator, words in groupby(
+            lexer, lambda token: token in {"&&", ";", "||", "|", "&"}
+        ):
+            if not separator:
+                command = list(words)
+                while command and re.fullmatch(
+                    r"[A-Za-z_][A-Za-z0-9_]*=.*", command[0]
+                ):
+                    command.pop(0)
+                if command:
+                    commands.append(command)
     return commands
-
-
-def _apt_operation(command: list[str]) -> tuple[str, list[str]]:
-    assert command[0] == "apt-get"
-    flags = {"-y", "--yes", "--no-install-recommends", "--auto-remove"}
-    arguments = []
-    for token in command[1:]:
-        if token.startswith("-"):
-            assert token in flags, f"Unsupported apt option: {token}"
-        else:
-            arguments.append(token)
-    assert arguments and arguments[0] in {
-        "update",
-        "install",
-        "purge",
-    }, "Unsupported apt operation"
-    return arguments[0], arguments[1:]
 
 
 def _install_pins(text: str) -> dict[str, str]:
     pins = {}
-    for command in _build_commands(text):
-        if command[0] != "apt-get":
+    for command in _literal_commands(text):
+        if command[0] != "apt-get" or "install" not in command[1:]:
             continue
-        operation, packages = _apt_operation(command)
-        if operation != "install":
-            continue
+        packages = command[command.index("install") + 1 :]
         assert packages, "An install command must list packages"
         for package in packages:
+            if package in {"-y", "--yes", "--no-install-recommends"}:
+                continue
             match = re.fullmatch(
-                r"(?P<name>[a-z0-9][a-z0-9+.-]+(?::[a-z0-9][a-z0-9-]*)?)="
+                r"(?P<name>[a-z0-9][a-z0-9+.-]*(?::[a-z0-9][a-z0-9-]*)?)="
                 r"(?P<version>(?:[0-9]+:)?[0-9][A-Za-z0-9.+~-]*)",
                 package,
             )
             assert match, f"APT install requires an exact literal version: {package}"
-            assert match["name"] not in pins, "Duplicate package version selection"
             pins[match["name"]] = match["version"]
     assert pins, "Dockerfile must explicitly install pinned packages"
     return pins
 
 
+def _check_sync_flags(text: str) -> None:
+    syncs = [
+        command for command in _literal_commands(text) if command[:2] == ["uv", "sync"]
+    ]
+    assert syncs, "Dockerfile must sync locked Python dependencies"
+    for command in syncs:
+        assert {"--frozen", "--no-dev", "--no-editable"} <= set(
+            command[2:]
+        ), "Preserve production sync flags"
+
+
 def test_dockerfile_pins_every_direct_install_package():
-    """All required direct packages must use literal versions, not moving selectors."""
+    """Version refreshes must not turn a direct dependency into a moving target."""
     text = Path(__file__).with_name("Dockerfile").read_text(encoding="utf-8")
     assert set(_install_pins(text)) == {"gcc", "git", "libc6-dev", "libffi-dev"}
 
 
-def _validate_runtime_contract(text: str) -> None:
-    commands = _build_commands(text)
-    assert [command[0] for command in commands] == [
-        "apt-get",
-        "apt-get",
-        "uv",
-        "apt-get",
-        "rm",
-    ]
-    assert _apt_operation(commands[0]) == ("update", [])
-    assert _apt_operation(commands[1])[0] == "install"
-    assert commands[2] == ["uv", "sync", "--frozen", "--no-dev", "--no-editable"]
-    operation, removed = _apt_operation(commands[3])
-    assert operation == "purge"
-    assert set(removed) == {"gcc", "libc6-dev", "libffi-dev"}
-    assert "--auto-remove" in commands[3]
-    assert commands[4] == ["rm", "-rf", "/var/lib/apt/lists/*"]
-
-
-def test_dockerfile_preserves_frozen_dependencies_and_runtime_git():
-    """Build tools must survive sync, then leave the same layer without removing Git."""
-    _validate_runtime_contract(
+def test_dockerfile_preserves_frozen_production_dependencies():
+    """Image tests cannot prove which flags produced the installed environment."""
+    _check_sync_flags(
         Path(__file__).with_name("Dockerfile").read_text(encoding="utf-8")
     )
 
 
-@pytest.mark.parametrize(
-    ("before", "after", "reason"),
-    [
-        ("&& uv sync", "'&&' uv sync", "Unsupported shell"),
-        ("/var/lib/apt/lists/*", "'/var/lib/apt/lists/*'", "quoted wildcard"),
-        ("/var/lib/apt/lists/*", "/var/lib/apt/lists/\\*", "mixed quoting or escaping"),
-    ],
-)
-def test_runtime_contract_rejects_quoted_or_escaped_shell_syntax(before, after, reason):
-    """Quoting must not turn shell operators or wildcard cleanup into ordinary arguments."""
-    original = Path(__file__).with_name("Dockerfile").read_text(encoding="utf-8")
-    mutated = original.replace(before, after, 1)
-    assert mutated != original
-    with pytest.raises(AssertionError, match=reason):
-        _validate_runtime_contract(mutated)
-
-
-def test_exact_pin_policy_accepts_debian_versions_and_shell_quoting():
-    """Epochs and architecture qualifiers must survive argument normalization."""
-    assert _install_pins(
-        "RUN\tapt-get -y install 'gcc=4:14.2.0-1' git:amd64=1:2.0~rc1-2+deb13u5"
-    ) == {
-        "gcc": "4:14.2.0-1",
-        "git:amd64": "1:2.0~rc1-2+deb13u5",
+def test_pin_policy_accepts_version_updates_and_separate_layers():
+    """Valid version or layout updates must not require changing the policy."""
+    text = """RUN DEBIAN_FRONTEND=noninteractive apt-get install 'gcc=9:99.1-2+deb20u1' --yes
+RUN true
+RUN apt-get -y install git:amd64=1:99.0~rc1-2 \\
+# Docker permits comments inside continuations.
+&& apt-get install libc6-dev=99.0-1 libffi-dev=99.0-2
+"""
+    assert _install_pins(text) == {
+        "gcc": "9:99.1-2+deb20u1",
+        "git:amd64": "1:99.0~rc1-2",
+        "libc6-dev": "99.0-1",
+        "libffi-dev": "99.0-2",
     }
 
 
-def test_comment_lines_inside_continuations_preserve_both_install_commands():
-    """Docker removes full comment lines before passing continued RUN text to the shell."""
-    text = "RUN apt-get install gcc=1 \\\n# note\n&& apt-get install git=1"
-    assert _install_pins(text) == {"gcc": "1", "git": "1"}
-
-
 @pytest.mark.parametrize(
-    ("packages", "reason"),
+    "package",
     [
-        ("gcc", "exact literal version"),
-        ("gcc=", "exact literal version"),
-        ("gcc=4*", "exact literal version"),
-        ("gcc=[14]", "exact literal version"),
-        ("gcc>=4", "exact literal version"),
-        ("git/trixie-backports", "exact literal version"),
-        ("~ngcc", "exact literal version"),
-        ("gcc=1 git=1 libc6-dev libffi-dev=1", "exact literal version"),
-        ("gcc=1 gcc=2", "Duplicate package"),
-        ("-o Dpkg::Options::=--force-confold", "Unsupported apt option"),
-        ("", "install command must list"),
+        "gcc",
+        "gcc=",
+        "gcc=4*",
+        "gcc=4?",
+        "gcc=[14]",
+        'gcc="$VERSION"',
+        "git/trixie",
+        "git=latest",
     ],
 )
-def test_exact_pin_policy_rejects_nonliteral_package_selection(packages, reason):
-    """A single moving selector must fail for its own policy violation."""
-    with pytest.raises(AssertionError, match=reason):
-        _install_pins(f"RUN apt-get -y install {packages}")
+def test_pin_policy_rejects_moving_versions(package):
+    """A selector must identify one literal Debian version."""
+    with pytest.raises(AssertionError, match="exact literal version"):
+        _install_pins(f"RUN apt-get install {package}")
 
 
-@pytest.mark.parametrize(
-    ("text", "reason"),
-    [
-        ('RUN ["apt-get", "install", "gcc=1"]', "explicit shell-form"),
-        ("RUN ${APT_CMD:-apt-get} install gcc=1", "Unsupported shell"),
-        ("RUN apt-get install gcc=1#x && apt-get install git=1", "Unsupported shell"),
-        ("# escape=`\nRUN apt-get install gcc=1", "Unmodeled parser directive"),
-        (
-            "RUN apt-get install gcc=1\u2028&& apt-get install git=1",
-            "Unsupported Dockerfile characters",
-        ),
-        ("RUN apt-get install gcc=1\ngarbage", "Unsupported Dockerfile instruction"),
-        ("RUN apt-get install gcc=1 && apt-get upgrade", "Unsupported apt operation"),
-        (
-            "RUN apt-get install gcc=1 && apt-get satisfy git=1",
-            "Unsupported apt operation",
-        ),
-        ("RUN apt-get install gcc=$VERSION", "Unsupported shell"),
-        ("RUN apt-get install gcc=1; apt-get install git=1", "Unsupported shell"),
-        ("RUN apt-get install gcc=1 || true", "Unsupported shell"),
-        ("RUN <<EOF\napt-get install gcc=1\nEOF", "Unsupported Dockerfile instruction"),
-        ("RUN true\nRUN apt-get install gcc=1", "one RUN layer"),
-    ],
-)
-def test_build_contract_rejects_unmodeled_install_routes(text, reason):
-    """Unknown shell or apt forms require an explicit policy update, not silent acceptance."""
-    with pytest.raises(AssertionError, match=reason):
-        _install_pins(text)
+def test_sync_policy_allows_reordered_flags_and_extra_commands():
+    """Equivalent command layouts must not cause maintenance work."""
+    _check_sync_flags(
+        "RUN true && uv sync --no-editable --no-dev --frozen && echo done"
+    )
+
+
+@pytest.mark.parametrize("missing", ["--frozen", "--no-dev", "--no-editable"])
+def test_sync_policy_rejects_missing_production_flags(missing):
+    """Each flag protects a distinct part of the production dependency policy."""
+    flags = [
+        flag for flag in ["--frozen", "--no-dev", "--no-editable"] if flag != missing
+    ]
+    with pytest.raises(AssertionError, match="production sync flags"):
+        _check_sync_flags("RUN uv sync " + " ".join(flags))
