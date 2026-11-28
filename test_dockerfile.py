@@ -1,218 +1,196 @@
-"""Tests for Dockerfile package-install guardrails."""
+"""Validate the container's restricted, auditable package-install contract."""
 
 import re
+import shlex
 from pathlib import Path
 
-
-def _dockerfile_text() -> str:
-    return Path(__file__).with_name("Dockerfile").read_text(encoding="utf-8")
+import pytest
 
 
-def _normalized_dockerfile() -> str:
-    return _dockerfile_text().replace("\\\n", " ")
-
-
-def _canonical_package_name(token: str) -> str:
-    return token.strip("'\"").split("=", maxsplit=1)[0].split(":", maxsplit=1)[0]
-
-
-def _extract_run_commands() -> list[str]:
-    return [
-        line.strip()[4:].strip()
-        for line in _normalized_dockerfile().splitlines()
-        if line.lstrip().upper().startswith("RUN ")
-    ]
-
-
-def _strip_run_prefix_tokens(command: str) -> list[str]:
-    tokens = command.split()
-    while tokens and tokens[0].startswith("--"):
-        tokens = tokens[1:]
-    while tokens and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", tokens[0]):
-        tokens = tokens[1:]
-    return tokens
-
-
-def _extract_apt_package_tokens(operation: str) -> list[str]:
-    package_tokens: list[str] = []
-    for run_command in _extract_run_commands():
-        for segment in re.split(r"\s*(?:&&|;)\s*", run_command):
-            tokens = _strip_run_prefix_tokens(segment)
-            if not tokens or tokens[0] not in {"apt", "apt-get"}:
-                continue
-            if operation not in tokens[1:]:
-                continue
-            operation_index = tokens.index(operation)
-            package_start_index = operation_index + 1
-            package_tokens.extend(
-                token
-                for token in tokens[package_start_index:]
-                if not token.startswith("-")
-            )
-    return package_tokens
-
-
-def _iter_run_segments() -> list[str]:
-    segments: list[str] = []
-    for run_command in _extract_run_commands():
-        segments.extend(
-            segment.strip()
-            for segment in re.split(r"\s*(?:&&|;)\s*", run_command)
-            if segment.strip()
-        )
-    return segments
-
-
-def _segment_has_apt_command(segment: str) -> bool:
-    return bool(
-        re.search(
-            r"\bapt(?:-get)?\b\s+(?:-[\w-]+\s+)*(?:update|install|purge|remove|autoremove)\b",
-            segment,
-            re.IGNORECASE,
-        )
-    )
-
-
-def _canonical_shell_text(text: str) -> str:
-    """Normalize common shell obfuscation forms for static guardrail matching."""
-    text = re.sub(
-        r"\\x([0-9A-Fa-f]{2})", lambda match: chr(int(match.group(1), 16)), text
-    )
-    text = text.replace("\\", "")
-    text = re.sub(r"[\"']", "", text)
-    return re.sub(r"\s+", "", text).lower()
-
-
-def test_dockerfile_installs_git_for_runtime_support():
-    """Docker image must include Git for evergreen repository interactions."""
-    assert "git" in {
-        _canonical_package_name(package)
-        for package in _extract_apt_package_tokens("install")
-    }
-
-
-def test_dockerfile_keeps_required_build_packages_for_cffi_on_python_3_15():
-    """Build dependencies are required while lockfile needs source builds on Python 3.15."""
-    installed_packages = {
-        _canonical_package_name(package)
-        for package in _extract_apt_package_tokens("install")
-    }
-    assert {"gcc", "libc6-dev", "libffi-dev"}.issubset(installed_packages)
-
-
-def test_dockerfile_does_not_pin_apt_package_versions():
-    """Exact apt version pins break on moving Debian repositories."""
-    install_tokens = _extract_apt_package_tokens("install")
-    assert install_tokens, "Dockerfile must include apt install package tokens"
-    assert all("=" not in package for package in install_tokens)
-
-
-def test_dockerfile_purges_temporary_build_dependencies_after_sync():
-    """Temporary compiler packages should be removed after dependency install."""
-    dockerfile = _normalized_dockerfile()
-    assert dockerfile.index("apt-get -y purge --auto-remove") > dockerfile.index(
-        "uv sync --frozen --no-dev --no-editable"
-    )
-    assert {"gcc", "libc6-dev", "libffi-dev"}.issubset(
-        {
-            _canonical_package_name(package)
-            for package in _extract_apt_package_tokens("purge")
-        }
-    )
-
-
-def test_dockerfile_does_not_purge_git():
-    """Git must remain available at runtime after temporary-package cleanup."""
-    removed_package_tokens = (
-        _extract_apt_package_tokens("purge")
-        + _extract_apt_package_tokens("remove")
-        + _extract_apt_package_tokens("autoremove")
-    )
-    removed_packages = {
-        _canonical_package_name(package) for package in removed_package_tokens
-    }
-    assert "git" not in removed_packages
+def _build_commands(text: str) -> list[list[str]]:
     assert all(
-        not re.search(r"\bgit[.*?+\[\]{}|()\\-]*\b", token)
-        for token in removed_package_tokens
-    )
+        char in "\t\r\n" or 32 <= ord(char) <= 126 for char in text
+    ), "Unsupported Dockerfile characters"
+    physical_lines = []
+    for line in text.split("\n"):
+        line = line.removesuffix("\r")
+        assert "\r" not in line, "Unsupported embedded carriage return"
+        assert not re.match(
+            r"^\s*#\s*(escape|syntax|check)\s*=", line, re.IGNORECASE
+        ), "Unmodeled parser directive"
+        if line.strip() and not line.lstrip().startswith("#"):
+            physical_lines.append(line)
+    logical_lines = "\n".join(physical_lines).replace("\\\n", " ").split("\n")
+    runs = []
+    supported = {
+        "FROM",
+        "LABEL",
+        "WORKDIR",
+        "COPY",
+        "RUN",
+        "HEALTHCHECK",
+        "ENV",
+        "CMD",
+        "ENTRYPOINT",
+    }
+    for line in logical_lines:
+        instruction = re.fullmatch(r"\s*([A-Za-z]+)(?:\s+(.*))?", line)
+        assert (
+            instruction and instruction[1].upper() in supported
+        ), "Unsupported Dockerfile instruction"
+        if instruction[1].upper() == "RUN":
+            runs.append(instruction[2] or "")
+    assert len(runs) == 1, "Keep package installation and cleanup in one RUN layer"
+    assert not runs[0].lstrip().startswith(("[", "<<")), "Use explicit shell-form RUN"
+    lexer = shlex.shlex(runs[0], posix=True, punctuation_chars=";&|()")
+    lexer.whitespace_split = True
+    lexer.commenters = ""
+    commands: list[list[str]] = [[]]
+    for token in lexer:
+        if token == "&&":
+            assert commands[-1], "Empty shell command"
+            commands.append([])
+        else:
+            assert not any(
+                char in token for char in "$`;&|()#"
+            ), "Unsupported shell expansion or operator"
+            commands[-1].append(token)
+    assert commands[-1], "Empty shell command"
+    assert all(
+        command[0] in {"apt-get", "uv", "rm"} for command in commands
+    ), "Unsupported build command"
+    return commands
 
 
-def test_dockerfile_does_not_use_variable_expansion_for_apt_packages():
-    """Apt package names must be explicit so pin checks cannot be bypassed."""
-    package_tokens = (
-        _extract_apt_package_tokens("install")
-        + _extract_apt_package_tokens("purge")
-        + _extract_apt_package_tokens("remove")
-        + _extract_apt_package_tokens("autoremove")
-    )
-    assert all("$" not in token and "`" not in token for token in package_tokens)
+def _apt_operation(command: list[str]) -> tuple[str, list[str]]:
+    assert command[0] == "apt-get"
+    flags = {"-y", "--yes", "--no-install-recommends", "--auto-remove"}
+    arguments = []
+    for token in command[1:]:
+        if token.startswith("-"):
+            assert token in flags, f"Unsupported apt option: {token}"
+        else:
+            arguments.append(token)
+    assert arguments and arguments[0] in {
+        "update",
+        "install",
+        "purge",
+    }, "Unsupported apt operation"
+    return arguments[0], arguments[1:]
 
 
-def test_dockerfile_does_not_use_apt_preferences_version_pinning():
-    """APT preferences version pinning reintroduces the same fragility as inline pins."""
-    canonical = _canonical_shell_text(_normalized_dockerfile())
-    assert "/etc/apt/preferen" not in canonical
-    assert "pin:version" not in canonical
-    assert "dir::etc::preferences" not in canonical
-    assert "dir::etc::preferencesparts" not in canonical
-
-
-def test_dockerfile_does_not_use_run_heredoc_blocks():
-    """RUN heredocs can hide apt commands from line-oriented guardrails."""
-    assert not re.search(
-        r"^\s*RUN(?:\s+--\S+)*\s+<<",
-        _normalized_dockerfile(),
-        re.IGNORECASE | re.MULTILINE,
-    )
-
-
-def test_dockerfile_does_not_wrap_commands_with_nested_shells():
-    """Nested shells can hide apt operations from static package-token checks."""
-    dockerfile = _normalized_dockerfile()
-    assert not re.search(r"\b(?:bash|sh)\s+-\S*c\S*\b", dockerfile, re.IGNORECASE)
-
-
-def test_dockerfile_keeps_apt_as_top_level_shell_command():
-    """Apt invocations must be explicit top-level shell segments for static checks."""
-    for segment in _iter_run_segments():
-        tokens = _strip_run_prefix_tokens(segment)
-        if not _segment_has_apt_command(segment):
+def _install_pins(text: str) -> dict[str, str]:
+    pins = {}
+    for command in _build_commands(text):
+        if command[0] != "apt-get":
             continue
-        assert tokens and tokens[0] in {"apt", "apt-get"}
+        operation, packages = _apt_operation(command)
+        if operation != "install":
+            continue
+        assert packages, "An install command must list packages"
+        for package in packages:
+            match = re.fullmatch(
+                r"(?P<name>[a-z0-9][a-z0-9+.-]+(?::[a-z0-9][a-z0-9-]*)?)="
+                r"(?P<version>(?:[0-9]+:)?[0-9][A-Za-z0-9.+~-]*)",
+                package,
+            )
+            assert match, f"APT install requires an exact literal version: {package}"
+            assert match["name"] not in pins, "Duplicate package version selection"
+            pins[match["name"]] = match["version"]
+    assert pins, "Dockerfile must explicitly install pinned packages"
+    return pins
 
 
-def test_dockerfile_does_not_indirect_apt_commands():
-    """Apt must be called directly so pinning checks cannot be sidestepped via variables."""
-    for segment in _iter_run_segments():
-        assert not re.search(
-            r"[\"']?\$(?:\{?[A-Za-z_][A-Za-z0-9_]*\}?)[\"']?\s+(?:-[\w-]+\s+)*(?:update|install|purge|remove|autoremove)\b",
-            segment,
-            re.IGNORECASE,
-        )
+def test_dockerfile_pins_every_direct_install_package():
+    """All required direct packages must use literal versions, not moving selectors."""
+    text = Path(__file__).with_name("Dockerfile").read_text(encoding="utf-8")
+    assert set(_install_pins(text)) == {"gcc", "git", "libc6-dev", "libffi-dev"}
 
 
-def test_dockerfile_does_not_delete_runtime_git_binary_paths():
-    """Dockerfile must not remove git binaries after installing runtime git support."""
-    for segment in _iter_run_segments():
-        assert not re.search(
-            r"\brm\b[^;&\n]*(?:/usr/bin/git|/usr/lib/git-core/git)\b",
-            segment,
-            re.IGNORECASE,
-        )
-        assert not re.search(
-            r"\b(?:find|unlink)\b[^;&\n]*(?:/usr/bin/git|/usr/lib/git-core/git|\sgit(?:\s|$))",
-            segment,
-            re.IGNORECASE,
-        )
+def test_dockerfile_preserves_frozen_dependencies_and_runtime_git():
+    """Build tools must survive sync, then leave the same layer without removing Git."""
+    text = Path(__file__).with_name("Dockerfile").read_text(encoding="utf-8")
+    commands = _build_commands(text)
+    assert [command[0] for command in commands] == [
+        "apt-get",
+        "apt-get",
+        "uv",
+        "apt-get",
+        "rm",
+    ]
+    assert _apt_operation(commands[0]) == ("update", [])
+    assert _apt_operation(commands[1])[0] == "install"
+    assert commands[2] == ["uv", "sync", "--frozen", "--no-dev", "--no-editable"]
+    operation, removed = _apt_operation(commands[3])
+    assert operation == "purge"
+    assert set(removed) == {"gcc", "libc6-dev", "libffi-dev"}
+    assert "--auto-remove" in commands[3]
+    assert commands[4] == ["rm", "-rf", "/var/lib/apt/lists/*"]
 
 
-def test_dockerfile_does_not_remove_git_with_dpkg():
-    """Dockerfile must not use dpkg remove/purge operations for package cleanup."""
-    for segment in _iter_run_segments():
-        canonical_segment = re.sub(r"[\"']", "", segment).replace("\\", "")
-        assert not re.search(
-            r"\bdpkg\b[^;&\n]*(?:--purge|--remove|-P|-r)[^;&\n]*\bgit\b",
-            canonical_segment,
-            re.IGNORECASE,
-        )
+def test_exact_pin_policy_accepts_debian_versions_and_shell_quoting():
+    """Epochs and architecture qualifiers must survive argument normalization."""
+    assert _install_pins(
+        "RUN\tapt-get -y install 'gcc=4:14.2.0-1' git:amd64=1:2.0~rc1-2+deb13u5"
+    ) == {
+        "gcc": "4:14.2.0-1",
+        "git:amd64": "1:2.0~rc1-2+deb13u5",
+    }
+
+
+def test_comment_lines_inside_continuations_preserve_both_install_commands():
+    """Docker removes full comment lines before passing continued RUN text to the shell."""
+    text = "RUN apt-get install gcc=1 \\\n# note\n&& apt-get install git=1"
+    assert _install_pins(text) == {"gcc": "1", "git": "1"}
+
+
+@pytest.mark.parametrize(
+    ("packages", "reason"),
+    [
+        ("gcc", "exact literal version"),
+        ("gcc=", "exact literal version"),
+        ("gcc=4*", "exact literal version"),
+        ("gcc=[14]", "exact literal version"),
+        ("gcc>=4", "exact literal version"),
+        ("git/trixie-backports", "exact literal version"),
+        ("~ngcc", "exact literal version"),
+        ("gcc=1 git=1 libc6-dev libffi-dev=1", "exact literal version"),
+        ("gcc=1 gcc=2", "Duplicate package"),
+        ("-o Dpkg::Options::=--force-confold", "Unsupported apt option"),
+        ("", "install command must list"),
+    ],
+)
+def test_exact_pin_policy_rejects_nonliteral_package_selection(packages, reason):
+    """A single moving selector must fail for its own policy violation."""
+    with pytest.raises(AssertionError, match=reason):
+        _install_pins(f"RUN apt-get -y install {packages}")
+
+
+@pytest.mark.parametrize(
+    ("text", "reason"),
+    [
+        ('RUN ["apt-get", "install", "gcc=1"]', "explicit shell-form"),
+        ("RUN ${APT_CMD:-apt-get} install gcc=1", "Unsupported shell"),
+        ("RUN apt-get install gcc=1#x && apt-get install git=1", "Unsupported shell"),
+        ("# escape=`\nRUN apt-get install gcc=1", "Unmodeled parser directive"),
+        (
+            "RUN apt-get install gcc=1\u2028&& apt-get install git=1",
+            "Unsupported Dockerfile characters",
+        ),
+        ("RUN apt-get install gcc=1\ngarbage", "Unsupported Dockerfile instruction"),
+        ("RUN apt-get install gcc=1 && apt-get upgrade", "Unsupported apt operation"),
+        (
+            "RUN apt-get install gcc=1 && apt-get satisfy git=1",
+            "Unsupported apt operation",
+        ),
+        ("RUN apt-get install gcc=$VERSION", "Unsupported shell"),
+        ("RUN apt-get install gcc=1; apt-get install git=1", "Unsupported shell"),
+        ("RUN apt-get install gcc=1 || true", "Unsupported shell"),
+        ("RUN <<EOF\napt-get install gcc=1\nEOF", "Unsupported Dockerfile instruction"),
+        ("RUN true\nRUN apt-get install gcc=1", "one RUN layer"),
+    ],
+)
+def test_build_contract_rejects_unmodeled_install_routes(text, reason):
+    """Unknown shell or apt forms require an explicit policy update, not silent acceptance."""
+    with pytest.raises(AssertionError, match=reason):
+        _install_pins(text)
